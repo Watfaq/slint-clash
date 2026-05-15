@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Home page: VPN status and traffic statistics
+// Home page: VPN status and traffic statistics with animations
 
 import { Typography, ElevatedCard, FilledCard, FilledButton, OutlineButton, TextButton,
          MaterialText, HorizontalDivider, Icon, ScrollView } from "@material";
@@ -12,7 +12,7 @@ export component HomeView {
     height: 100%;
 
     ScrollView {
-            // Off state
+        // Off state
         if !MainAdapter.vpn-active: VerticalLayout {
             alignment: center;
             spacing: 24px;
@@ -63,7 +63,6 @@ export component HomeView {
             padding: 16px;
             spacing: 16px;
             width: 100%;
-            height: 100%;
 
             // VPN Status card
             ElevatedCard {
@@ -90,6 +89,7 @@ export component HomeView {
 
                         Rectangle { horizontal-stretch: 1; }
 
+                        // Pulsing status dot
                         Rectangle {
                             width: 10px;
                             height: 10px;
@@ -181,6 +181,8 @@ export component HomeView {
                                 MaterialText {
                                     text: MainAdapter.traffic-upload;
                                     style: Typography.title_medium;
+                                    color: MainAdapter.traffic-pulse ? #a5d6a7 : #81c784;
+                                    animate color { duration: 300ms; easing: ease-in-out; }
                                 }
                             }
                         }
@@ -207,6 +209,8 @@ export component HomeView {
                                 MaterialText {
                                     text: MainAdapter.traffic-download;
                                     style: Typography.title_medium;
+                                    color: MainAdapter.traffic-pulse ? #81d4fa : #4fc3f7;
+                                    animate color { duration: 300ms; easing: ease-in-out; }
                                 }
                             }
                         }

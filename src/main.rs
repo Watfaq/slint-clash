@@ -258,6 +258,7 @@ fn main() -> eyre::Result<()> {
                                 let a = w.global::<MainAdapter>();
                                 a.set_traffic_upload(format_bytes(t.up).into());
                                 a.set_traffic_download(format_bytes(t.down).into());
+                                a.set_traffic_pulse(!a.get_traffic_pulse());
                             }
                         });
                     }
