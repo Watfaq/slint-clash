@@ -1,13 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Reusable settings entry with inline editing
 
-import { Typography,  FilledButton, TextButton, MaterialText, TextField } from "@material";
+import { Typography, FilledButton, TextButton, MaterialText, TextField } from "@material";
 import { MainAdapter } from "./main_adapter.slint";
 
 export component SettingItem {
     in property <int> idx;
     in property <string> label;
     in property <string> value;
+
+    width: 100%;
+    min-height: 48px;
 
     if !MainAdapter.show-edit-ui || MainAdapter.editing-field-index != root.idx: HorizontalLayout {
         spacing: 12px;
@@ -16,10 +19,11 @@ export component SettingItem {
         padding-top: 8px;
         padding-bottom: 8px;
         alignment: center;
-        min-height: 48px;
+        width: 100%;
 
         VerticalLayout {
             spacing: 2px;
+            width: 100%;
             MaterialText {
                 text: root.label;
                 style: Typography.body_medium;
@@ -31,9 +35,7 @@ export component SettingItem {
             }
         }
 
-        Rectangle {
-            horizontal-stretch: 1;
-        }
+        Rectangle { horizontal-stretch: 1; }
 
         TextButton {
             text: "Edit";
@@ -44,22 +46,23 @@ export component SettingItem {
     }
 
     if MainAdapter.show-edit-ui && MainAdapter.editing-field-index == root.idx: HorizontalLayout {
+        spacing: 12px;
         padding-left: 4px;
         padding-right: 4px;
         padding-top: 8px;
         padding-bottom: 8px;
-        spacing: 12px;
         alignment: center;
-        min-height: 48px;
+        width: 100%;
 
         MaterialText {
             text: root.label;
             style: Typography.label_small;
             vertical-alignment: center;
-            min-width: 110px;
+            min-width: 100px;
         }
 
         editor := TextField {
+            horizontal-stretch: 1;
             text <=> MainAdapter.edit-value;
         }
 

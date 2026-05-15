@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Settings page with inline editing
 
-import { Typography,  ElevatedCard, MaterialText, HorizontalDivider, ScrollView } from "@material";
+import { Typography, ElevatedCard, MaterialText, HorizontalDivider, ScrollView } from "@material";
 import { MainAdapter } from "../components/main_adapter.slint";
 import { SettingItem } from "../components/setting_item.slint";
 
@@ -9,12 +9,13 @@ export { MainAdapter as SettingsViewAdapter }
 
 export component SettingsView {
     width: 100%;
-    preferred-height: 100%;
+    height: 100%;
 
     ScrollView {
         VerticalLayout {
             padding: 16px;
             spacing: 16px;
+            width: 100%;
 
             MaterialText {
                 text: "Settings";
@@ -22,16 +23,18 @@ export component SettingsView {
             }
 
             ElevatedCard {
+                width: 100%;
                 VerticalLayout {
                     spacing: 12px;
                     padding: 20px;
+                    width: 100%;
 
                     MaterialText {
                         text: "Application";
                         style: Typography.title_small;
                     }
 
-                    HorizontalDivider {}
+                    HorizontalDivider { width: 100%; }
 
                     SettingItem {
                         idx: 0;
@@ -48,16 +51,18 @@ export component SettingsView {
             }
 
             ElevatedCard {
+                width: 100%;
                 VerticalLayout {
                     spacing: 12px;
                     padding: 20px;
+                    width: 100%;
 
                     MaterialText {
                         text: "API";
                         style: Typography.title_small;
                     }
 
-                    HorizontalDivider {}
+                    HorizontalDivider { width: 100%; }
 
                     SettingItem {
                         idx: 2;

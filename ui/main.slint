@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Slint Material 3 main window with navigation rail
 
-import { MaterialWindow, NavigationRail, NavigationItem, AppBar, FilledButton, ElevatedCard,
-         FilledCard, OutlinedCard, TextButton, OutlineButton, ListView, ListTile,
-         HorizontalDivider, VerticalDivider, Icon, IconButton, MaterialText,
-         TextField, CheckBox, Switch, SnackBar, ScrollView } from "@material";
+import { MaterialWindow, NavigationRail, NavigationItem, AppBar, Icon, MaterialText } from "@material";
 import { HomeView, HomeViewAdapter } from "./pages/home.slint";
 import { ProfileView, ProfileViewAdapter } from "./pages/profile.slint";
 import { SettingsView, SettingsViewAdapter } from "./pages/settings.slint";
@@ -36,12 +33,22 @@ export component MainWindow inherits MaterialWindow {
                 current-index <=> MainAdapter.current-page;
             }
 
-            ScrollView {
+            // Content fills remaining space
+            Rectangle {
+                horizontal-stretch: 1;
+                background: transparent;
+
                 if MainAdapter.current-page == 0: HomeView {
+                    width: 100%;
+                    height: 100%;
                 }
                 if MainAdapter.current-page == 1: ProfileView {
+                    width: 100%;
+                    height: 100%;
                 }
                 if MainAdapter.current-page == 2: SettingsView {
+                    width: 100%;
+                    height: 100%;
                 }
             }
         }
