@@ -12,6 +12,7 @@ pub struct ClashApi {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct Version {
+    #[allow(dead_code)]
     pub meta: Option<bool>,
     pub version: Option<String>,
 }

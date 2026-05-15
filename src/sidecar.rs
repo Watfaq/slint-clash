@@ -71,6 +71,7 @@ impl SidecarManager {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub fn is_running(&self) -> bool {
         self.child.as_ref().map(|c| c.id()).is_some()
     }

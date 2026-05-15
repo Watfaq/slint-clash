@@ -26,12 +26,12 @@ export component ProfileView {
                     style: Typography.title_large;
                 }
                 Rectangle { horizontal-stretch: 1; }
-                OutlineButton {
+                HorizontalLayout { alignment: end; OutlineButton {
                     text: "Reload Config";
                     clicked => {
                         MainAdapter.reload-config();
                     }
-                }
+                } }
             }
 
             ElevatedCard {
