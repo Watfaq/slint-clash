@@ -51,7 +51,7 @@ export component HomeView {
 
             FilledButton {
                 text: "Start VPN";
-                max-width: 220px;
+                horizontal-stretch: 0;
                 clicked => {
                     MainAdapter.toggle-vpn();
                 }
@@ -124,7 +124,7 @@ export component HomeView {
                         Rectangle { horizontal-stretch: 1; }
                         OutlineButton {
                             text: "Stop VPN";
-                            max-width: 200px;
+                            horizontal-stretch: 0;
                             clicked => {
                                 MainAdapter.toggle-vpn();
                             }

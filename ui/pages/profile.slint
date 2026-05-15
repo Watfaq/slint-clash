@@ -28,7 +28,7 @@ export component ProfileView {
                 Rectangle { horizontal-stretch: 1; }
                 OutlineButton {
                     text: "Reload Config";
-                    max-width: 200px;
+                    horizontal-stretch: 0;
                     clicked => {
                         MainAdapter.reload-config();
                     }
