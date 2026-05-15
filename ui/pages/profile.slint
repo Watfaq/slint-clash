@@ -1,0 +1,161 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Profile page: config profile selection and management
+
+import { Typography,  ElevatedCard, FilledCard, FilledButton, OutlineButton, TextButton,
+         MaterialText, HorizontalDivider, Icon, ScrollView } from "@material";
+import { MainAdapter } from "../components/main_adapter.slint";
+
+export { MainAdapter as ProfileViewAdapter }
+
+export component ProfileView {
+    width: 100%;
+    preferred-height: 100%;
+
+    ScrollView {
+        VerticalLayout {
+            padding: 16px;
+            spacing: 16px;
+
+            HorizontalLayout {
+                spacing: 12px;
+                alignment: start;
+                MaterialText {
+                    text: "Profiles";
+                    style: Typography.title_large;
+                }
+                Rectangle {
+                    horizontal-stretch: 1;
+                }
+                OutlineButton {
+                    text: "Reload Config";
+                    clicked => {
+                        MainAdapter.reload-config();
+                    }
+                }
+            }
+
+            ElevatedCard {
+                VerticalLayout {
+                    spacing: 12px;
+                    padding: 20px;
+
+                    HorizontalLayout {
+                        spacing: 16px;
+                        alignment: start;
+
+                        Rectangle {
+                            width: 48px;
+                            height: 48px;
+                            border-radius: 24px;
+                            background: #e8e8e8;
+                            Icon {
+                                source: @image-url("../icons/emblem-default.svg");
+                                width: 28px;
+                                height: 28px;
+                            }
+                        }
+
+                        VerticalLayout {
+                            spacing: 4px;
+                            MaterialText {
+                                text: "Active Profile";
+                                style: Typography.label_medium;
+                                opacity: 0.6;
+                            }
+                            MaterialText {
+                                text: MainAdapter.active-profile == "" ? "None" : MainAdapter.active-profile;
+                                style: Typography.title_medium;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if !MainAdapter.profiles-loaded || MainAdapter.profiles.length == 0: ElevatedCard {
+                VerticalLayout {
+                    alignment: center;
+                    spacing: 12px;
+                    padding: 32px;
+
+                    Icon {
+                        source: @image-url("../icons/folder.svg");
+                        width: 48px;
+                        height: 48px;
+                    }
+                    MaterialText {
+                        text: "No profiles found";
+                        style: Typography.title_small;
+                        horizontal-alignment: center;
+                    }
+                    MaterialText {
+                        text: "Add YAML configuration files to your config directory.";
+                        style: Typography.body_medium;
+                        horizontal-alignment: center;
+                        opacity: 0.6;
+                    }
+                }
+            }
+
+            if MainAdapter.profiles-loaded && MainAdapter.profiles.length > 0: ElevatedCard {
+                VerticalLayout {
+                    spacing: 0px;
+                    padding: 20px;
+
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Icon {
+                            source: @image-url("../icons/folder-open.svg");
+                            width: 20px;
+                            height: 20px;
+                        }
+                        MaterialText {
+                            text: "Available Profiles";
+                            style: Typography.title_small;
+                        }
+                    }
+
+                    HorizontalDivider {}
+
+                    for profile[idx] in MainAdapter.profiles: VerticalLayout {
+                        HorizontalLayout {
+                            spacing: 12px;
+                            padding-left: 4px;
+                            padding-right: 4px;
+                            padding-top: 12px;
+                            padding-bottom: 12px;
+                            alignment: center;
+
+                            Icon {
+                                source: profile == MainAdapter.active-profile ? @image-url("../icons/emblem-default.svg") : @image-url("../icons/folder.svg");
+                                width: 20px;
+                                height: 20px;
+                            }
+
+                            MaterialText {
+                                text: profile;
+                                style: Typography.body_medium;
+                            }
+
+                            Rectangle {
+                                horizontal-stretch: 1;
+                            }
+
+                            if MainAdapter.active-profile == profile: MaterialText {
+                                text: "Selected";
+                                style: Typography.label_medium;
+                                opacity: 0.6;
+                            }
+
+                            if MainAdapter.active-profile != profile: TextButton {
+                                text: "Select";
+                                clicked => {
+                                    MainAdapter.select-profile(profile);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

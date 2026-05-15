@@ -1,0 +1,80 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Reusable settings entry with inline editing
+
+import { Typography,  FilledButton, TextButton, MaterialText, TextField } from "@material";
+import { MainAdapter } from "./main_adapter.slint";
+
+export component SettingItem {
+    in property <int> idx;
+    in property <string> label;
+    in property <string> value;
+
+    if !MainAdapter.show-edit-ui || MainAdapter.editing-field-index != root.idx: HorizontalLayout {
+        spacing: 12px;
+        padding-left: 4px;
+        padding-right: 4px;
+        padding-top: 8px;
+        padding-bottom: 8px;
+        alignment: center;
+        min-height: 48px;
+
+        VerticalLayout {
+            spacing: 2px;
+            MaterialText {
+                text: root.label;
+                style: Typography.body_medium;
+            }
+            MaterialText {
+                text: root.value;
+                style: Typography.label_small;
+                opacity: 0.6;
+            }
+        }
+
+        Rectangle {
+            horizontal-stretch: 1;
+        }
+
+        TextButton {
+            text: "Edit";
+            clicked => {
+                MainAdapter.start-edit(root.idx);
+            }
+        }
+    }
+
+    if MainAdapter.show-edit-ui && MainAdapter.editing-field-index == root.idx: HorizontalLayout {
+        padding-left: 4px;
+        padding-right: 4px;
+        padding-top: 8px;
+        padding-bottom: 8px;
+        spacing: 12px;
+        alignment: center;
+        min-height: 48px;
+
+        MaterialText {
+            text: root.label;
+            style: Typography.label_small;
+            vertical-alignment: center;
+            min-width: 110px;
+        }
+
+        editor := TextField {
+            text <=> MainAdapter.edit-value;
+        }
+
+        TextButton {
+            text: "Cancel";
+            clicked => {
+                MainAdapter.cancel-edit();
+            }
+        }
+
+        FilledButton {
+            text: "Save";
+            clicked => {
+                MainAdapter.save-setting(root.idx, editor.text);
+            }
+        }
+    }
+}

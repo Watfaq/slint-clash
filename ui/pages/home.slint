@@ -1,0 +1,210 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Home page: VPN status and traffic statistics
+
+import { Typography,  ElevatedCard, FilledCard, FilledButton, OutlineButton, TextButton,
+         MaterialText, HorizontalDivider, Icon } from "@material";
+import { MainAdapter } from "../components/main_adapter.slint";
+
+export { MainAdapter as HomeViewAdapter }
+
+export component HomeView {
+    width: 100%;
+    preferred-height: 100%;
+
+    // Off state
+    if !MainAdapter.vpn-active: VerticalLayout {
+        alignment: center;
+        spacing: 24px;
+        padding-left: 32px;
+        padding-right: 32px;
+        padding-top: 48px;
+        padding-bottom: 48px;
+
+        Rectangle {
+            width: 88px;
+            height: 88px;
+            border-radius: 44px;
+            background: #e8e8e8;
+            HorizontalLayout {
+                alignment: center;
+                padding: 16px;
+            }
+            Icon {
+                source: @image-url("../icons/network-wireless-disabled.svg");
+                width: 56px;
+                height: 56px;
+            }
+        }
+
+        MaterialText {
+            text: "No VPN connection";
+            style: Typography.headline_small;
+            horizontal-alignment: center;
+        }
+
+        MaterialText {
+            text: "Press the button below to start the proxy service.";
+            style: Typography.body_medium;
+            horizontal-alignment: center;
+            opacity: 0.6;
+        }
+
+        FilledButton {
+            text: "Start VPN";
+            clicked => {
+                MainAdapter.toggle-vpn();
+            }
+        }
+    }
+
+    // On state
+    if MainAdapter.vpn-active: VerticalLayout {
+        padding: 16px;
+        spacing: 16px;
+
+        // VPN Status card
+        ElevatedCard {
+            VerticalLayout {
+                spacing: 16px;
+                padding: 20px;
+
+                HorizontalLayout {
+                    spacing: 12px;
+                    alignment: start;
+
+                    Icon {
+                        source: @image-url("../icons/network-wireless.svg");
+                        width: 28px;
+                        height: 28px;
+                    }
+
+                    MaterialText {
+                        text: "VPN Status";
+                        style: Typography.title_medium;
+                    }
+
+                    HorizontalLayout {
+                        alignment: center;
+                        spacing: 8px;
+                        Rectangle {
+                            width: 10px;
+                            height: 10px;
+                            border-radius: 5px;
+                            background: #4caf50;
+                        }
+                        MaterialText {
+                            text: "Running";
+                            style: Typography.body_medium;
+                            opacity: 0.7;
+                        }
+                    }
+                }
+
+                HorizontalDivider {}
+
+                if MainAdapter.clash-version != "": HorizontalLayout {
+                    spacing: 8px;
+                    MaterialText {
+                        text: "Clash Version";
+                        style: Typography.label_medium;
+                        opacity: 0.6;
+                    }
+                    Rectangle {
+                        horizontal-stretch: 1;
+                    }
+                    MaterialText {
+                        text: MainAdapter.clash-version;
+                        style: Typography.body_medium;
+                    }
+                }
+
+                HorizontalLayout {
+                    alignment: end;
+                    OutlineButton {
+                        text: "Stop VPN";
+                        clicked => {
+                            MainAdapter.toggle-vpn();
+                        }
+                    }
+                }
+            }
+        }
+
+        // Traffic statistics card
+        ElevatedCard {
+            VerticalLayout {
+                spacing: 16px;
+                padding: 20px;
+
+                HorizontalLayout {
+                    spacing: 8px;
+                    Icon {
+                        source: @image-url("../icons/utilities-system-monitor.svg");
+                        width: 20px;
+                        height: 20px;
+                    }
+                    MaterialText {
+                        text: "Statistics";
+                        style: Typography.title_medium;
+                    }
+                }
+
+                HorizontalLayout {
+                    spacing: 16px;
+
+                    FilledCard {
+                        VerticalLayout {
+                            spacing: 8px;
+                            padding: 16px;
+                            min-width: 140px;
+
+                            HorizontalLayout {
+                                spacing: 6px;
+                                Icon {
+                                    source: @image-url("../icons/go-up.svg");
+                                    width: 16px;
+                                    height: 16px;
+                                }
+                                MaterialText {
+                                    text: "Upload";
+                                    style: Typography.label_medium;
+                                    opacity: 0.6;
+                                }
+                            }
+                            MaterialText {
+                                text: MainAdapter.traffic-upload;
+                                style: Typography.title_medium;
+                            }
+                        }
+                    }
+
+                    FilledCard {
+                        VerticalLayout {
+                            spacing: 8px;
+                            padding: 16px;
+                            min-width: 140px;
+
+                            HorizontalLayout {
+                                spacing: 6px;
+                                Icon {
+                                    source: @image-url("../icons/go-down.svg");
+                                    width: 16px;
+                                    height: 16px;
+                                }
+                                MaterialText {
+                                    text: "Download";
+                                    style: Typography.label_medium;
+                                    opacity: 0.6;
+                                }
+                            }
+                            MaterialText {
+                                text: MainAdapter.traffic-download;
+                                style: Typography.title_medium;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

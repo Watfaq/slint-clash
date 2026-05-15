@@ -1,0 +1,39 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Global adapter for main window state and bridge to Rust backend
+
+import { MaterialPalette } from "@material";
+
+export global MainAdapter {
+    in-out property <int> current-page: 0;
+    in-out property <brush> background: MaterialPalette.background;
+
+    // VPN state
+    in-out property <bool> vpn-active;
+    in-out property <string> clash-version;
+    in-out property <string> traffic-upload: "—";
+    in-out property <string> traffic-download: "—";
+
+    // Profile state
+    in-out property <string> active-profile;
+    in-out property <[string]> profiles;
+    in-out property <bool> profiles-loaded;
+
+    // Settings state — persisted values
+    in-out property <string> setting-binary-path;
+    in-out property <string> setting-config-dir;
+    in-out property <int> setting-api-port: 9090;
+    in-out property <string> setting-api-port-text: "9090";
+    in-out property <string> setting-api-secret;
+
+    // Settings state — editing UI
+    in-out property <int> editing-field-index: -1;
+    in-out property <string> edit-value;
+    in-out property <bool> show-edit-ui;
+
+    callback toggle-vpn();
+    callback select-profile(string);
+    callback reload-config();
+    callback start-edit(int);
+    callback save-setting(int, string);
+    callback cancel-edit();
+}

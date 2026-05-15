@@ -1,0 +1,77 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Settings page with inline editing
+
+import { Typography,  ElevatedCard, MaterialText, HorizontalDivider, ScrollView } from "@material";
+import { MainAdapter } from "../components/main_adapter.slint";
+import { SettingItem } from "../components/setting_item.slint";
+
+export { MainAdapter as SettingsViewAdapter }
+
+export component SettingsView {
+    width: 100%;
+    preferred-height: 100%;
+
+    ScrollView {
+        VerticalLayout {
+            padding: 16px;
+            spacing: 16px;
+
+            MaterialText {
+                text: "Settings";
+                style: Typography.title_large;
+            }
+
+            ElevatedCard {
+                VerticalLayout {
+                    spacing: 12px;
+                    padding: 20px;
+
+                    MaterialText {
+                        text: "Application";
+                        style: Typography.title_small;
+                    }
+
+                    HorizontalDivider {}
+
+                    SettingItem {
+                        idx: 0;
+                        label: "Clash Binary";
+                        value: MainAdapter.setting-binary-path == "" ? "Auto-detect" : MainAdapter.setting-binary-path;
+                    }
+
+                    SettingItem {
+                        idx: 1;
+                        label: "Config Directory";
+                        value: MainAdapter.setting-config-dir == "" ? "Default" : MainAdapter.setting-config-dir;
+                    }
+                }
+            }
+
+            ElevatedCard {
+                VerticalLayout {
+                    spacing: 12px;
+                    padding: 20px;
+
+                    MaterialText {
+                        text: "API";
+                        style: Typography.title_small;
+                    }
+
+                    HorizontalDivider {}
+
+                    SettingItem {
+                        idx: 2;
+                        label: "API Port";
+                        value: MainAdapter.setting-api-port-text;
+                    }
+
+                    SettingItem {
+                        idx: 3;
+                        label: "API Secret";
+                        value: MainAdapter.setting-api-secret == "" ? "None" : "••••••••";
+                    }
+                }
+            }
+        }
+    }
+}
