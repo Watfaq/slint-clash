@@ -33,22 +33,34 @@ export component MainWindow inherits MaterialWindow {
                 current-index <=> MainAdapter.current-page;
             }
 
-            // Content fills remaining space
+            // Content fills remaining space — pages stacked with cross-fade transitions
             Rectangle {
                 horizontal-stretch: 1;
                 background: transparent;
 
-                if MainAdapter.current-page == 0: HomeView {
-                    width: 100%;
-                    height: 100%;
+                home := HomeView {
+                    x: 0px;
+                    y: 0px;
+                    width: parent.width;
+                    height: parent.height;
+                    opacity: MainAdapter.current-page == 0 ? 1.0 : 0.0;
+                    animate opacity { duration: 200ms; easing: ease-in-out; }
                 }
-                if MainAdapter.current-page == 1: ProfileView {
-                    width: 100%;
-                    height: 100%;
+                profile := ProfileView {
+                    x: 0px;
+                    y: 0px;
+                    width: parent.width;
+                    height: parent.height;
+                    opacity: MainAdapter.current-page == 1 ? 1.0 : 0.0;
+                    animate opacity { duration: 200ms; easing: ease-in-out; }
                 }
-                if MainAdapter.current-page == 2: SettingsView {
-                    width: 100%;
-                    height: 100%;
+                settings := SettingsView {
+                    x: 0px;
+                    y: 0px;
+                    width: parent.width;
+                    height: parent.height;
+                    opacity: MainAdapter.current-page == 2 ? 1.0 : 0.0;
+                    animate opacity { duration: 200ms; easing: ease-in-out; }
                 }
             }
         }
