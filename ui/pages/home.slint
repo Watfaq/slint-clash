@@ -49,10 +49,13 @@ export component HomeView {
                 opacity: 0.6;
             }
 
-            FilledButton {
-                text: "Start VPN";
-                clicked => {
-                    MainAdapter.toggle-vpn();
+            HorizontalLayout {
+                alignment: center;
+                FilledButton {
+                    text: "Start VPN";
+                    clicked => {
+                        MainAdapter.toggle-vpn();
+                    }
                 }
             }
         }
