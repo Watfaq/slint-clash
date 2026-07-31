@@ -4,6 +4,7 @@
 import { MaterialWindow, NavigationRail, NavigationItem, AppBar, LinearProgressIndicator,
          MaterialText, TextButton } from "@material";
 import { HomeView, HomeViewAdapter } from "./pages/home.slint";
+import { ProxiesView, ProxiesViewAdapter } from "./pages/proxies.slint";
 import { ProfileView, ProfileViewAdapter } from "./pages/profile.slint";
 import { SettingsView, SettingsViewAdapter } from "./pages/settings.slint";
 import { MainAdapter } from "./components/main_adapter.slint";
@@ -20,6 +21,7 @@ export component MainWindow inherits MaterialWindow {
 
     in property <[NavigationItem]> nav-items: [
         { icon: @image-url("icons/home.svg"), text: "Home" },
+        { icon: @image-url("icons/proxy.svg"), text: "Proxies" },
         { icon: @image-url("icons/profile.svg"), text: "Profiles" },
         { icon: @image-url("icons/settings.svg"), text: "Settings" },
     ];
@@ -55,7 +57,7 @@ export component MainWindow inherits MaterialWindow {
                     animate x { duration: 250ms; easing: ease-out; }
                     animate opacity { duration: 200ms; easing: ease-in-out; }
                 }
-                profile := ProfileView {
+                proxies := ProxiesView {
                     y: 0px;
                     width: parent.width;
                     height: parent.height;
@@ -64,12 +66,21 @@ export component MainWindow inherits MaterialWindow {
                     animate x { duration: 250ms; easing: ease-out; }
                     animate opacity { duration: 200ms; easing: ease-in-out; }
                 }
-                settings := SettingsView {
+                profile := ProfileView {
                     y: 0px;
                     width: parent.width;
                     height: parent.height;
                     x: MainAdapter.current-page == 2 ? 0px : parent.width;
                     opacity: MainAdapter.current-page == 2 ? 1.0 : 0.0;
+                    animate x { duration: 250ms; easing: ease-out; }
+                    animate opacity { duration: 200ms; easing: ease-in-out; }
+                }
+                settings := SettingsView {
+                    y: 0px;
+                    width: parent.width;
+                    height: parent.height;
+                    x: MainAdapter.current-page == 3 ? 0px : parent.width;
+                    opacity: MainAdapter.current-page == 3 ? 1.0 : 0.0;
                     animate x { duration: 250ms; easing: ease-out; }
                     animate opacity { duration: 200ms; easing: ease-in-out; }
                 }

@@ -3,6 +3,26 @@
 
 import { MaterialPalette } from "@material";
 
+export struct ProfileItem {
+    name: string,
+    is-subscription: bool,
+}
+
+export struct ProxyGroupItem {
+    name: string,
+    kind: string,
+    selected: string,
+    count: int,
+}
+
+export struct ProxyNodeItem {
+    name: string,
+    kind: string,
+    delay: string,
+    alive: bool,
+    selected: bool,
+}
+
 export global MainAdapter {
     in-out property <int> current-page: 0;
     in-out property <brush> background: MaterialPalette.background;
@@ -19,8 +39,16 @@ export global MainAdapter {
 
     // Profile state
     in-out property <string> active-profile;
-    in-out property <[string]> profiles;
+    in-out property <[ProfileItem]> profiles;
     in-out property <bool> profiles-loaded;
+    in-out property <bool> show-import-ui;
+    in-out property <string> import-name;
+    in-out property <string> import-url;
+
+    // Proxy groups and the nodes for the currently selected group
+    in-out property <[ProxyGroupItem]> proxy-groups;
+    in-out property <[ProxyNodeItem]> proxy-nodes;
+    in-out property <string> active-proxy-group;
 
     // Settings state — persisted values
     in-out property <string> setting-binary-path;
@@ -39,6 +67,13 @@ export global MainAdapter {
     callback set-clash-mode(int);
     callback select-profile(string);
     callback reload-config();
+    callback import-profile(string, string);
+    callback update-profile(string);
+    callback cancel-import();
+    callback refresh-proxies();
+    callback select-proxy-group(string);
+    callback select-proxy(string, string);
+    callback test-proxy-delay(string, string);
     callback start-edit(int);
     callback save-setting(int, string);
     callback cancel-edit();

@@ -1,11 +1,37 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Profile page: config profile selection and management
 
-import { Typography, ElevatedCard, FilledCard, FilledButton, OutlineButton, TextButton,
+import { Typography, ElevatedCard, FilledButton, OutlineButton, TextButton, TextField,
          MaterialText, HorizontalDivider, Icon, ScrollView } from "@material";
 import { MainAdapter } from "../components/main_adapter.slint";
 
 export { MainAdapter as ProfileViewAdapter }
+
+component ProfileActions {
+    callback add-subscription();
+
+    HorizontalLayout {
+        spacing: 8px;
+        OutlineButton {
+            height: 40px;
+            text: "Add Subscription";
+            enabled: !MainAdapter.core-busy;
+            horizontal-stretch: 0;
+            clicked => {
+                root.add-subscription();
+            }
+        }
+        OutlineButton {
+            height: 40px;
+            text: "Reload Config";
+            enabled: !MainAdapter.core-busy;
+            horizontal-stretch: 0;
+            clicked => {
+                MainAdapter.reload-config();
+            }
+        }
+    }
+}
 
 export component ProfileView {
     width: 100%;
@@ -17,7 +43,8 @@ export component ProfileView {
             spacing: 16px;
             width: 100%;
 
-            HorizontalLayout {
+            if root.width >= 560px: HorizontalLayout {
+                height: 48px;
                 spacing: 12px;
                 alignment: center;
                 width: 100%;
@@ -26,12 +53,67 @@ export component ProfileView {
                     style: Typography.title_large;
                 }
                 Rectangle { horizontal-stretch: 1; }
-                OutlineButton {
-                    text: "Reload Config";
-                    enabled: !MainAdapter.core-busy;
-                    horizontal-stretch: 0;
-                    clicked => {
-                        MainAdapter.reload-config();
+                ProfileActions {
+                    add-subscription => {
+                        MainAdapter.show-import-ui = true;
+                    }
+                }
+            }
+
+            if root.width < 560px: VerticalLayout {
+                spacing: 8px;
+                MaterialText {
+                    text: "Profiles";
+                    style: Typography.title_large;
+                }
+                ProfileActions {
+                    add-subscription => {
+                        MainAdapter.show-import-ui = true;
+                    }
+                }
+            }
+
+            if MainAdapter.show-import-ui: ElevatedCard {
+                width: 100%;
+                VerticalLayout {
+                    padding: 20px;
+                    spacing: 12px;
+
+                    MaterialText {
+                        text: "Import Subscription";
+                        style: Typography.title_medium;
+                    }
+
+                    TextField {
+                        label: "Profile name";
+                        text <=> MainAdapter.import-name;
+                    }
+
+                    TextField {
+                        label: "Subscription URL";
+                        text <=> MainAdapter.import-url;
+                    }
+
+                    HorizontalLayout {
+                        Rectangle { horizontal-stretch: 1; }
+                        TextButton {
+                            text: "Cancel";
+                            enabled: !MainAdapter.core-busy;
+                            clicked => {
+                                MainAdapter.cancel-import();
+                            }
+                        }
+                        FilledButton {
+                            width: 120px;
+                            text: MainAdapter.core-busy ? "Importing…" : "Import";
+                            enabled: !MainAdapter.core-busy;
+                            clicked => {
+                                MainAdapter.import-profile(
+                                    MainAdapter.import-name,
+                                    MainAdapter.import-url
+                                );
+                            }
+                        }
                     }
                 }
             }
@@ -52,7 +134,7 @@ export component ProfileView {
                             width: 48px;
                             height: 48px;
                             border-radius: 24px;
-                            background: #e8e8e8;
+                            background: #303238;
                             Icon {
                                 source: @image-url("../icons/emblem-default.svg");
                                 width: 28px;
@@ -138,29 +220,37 @@ export component ProfileView {
                             width: 100%;
 
                             Icon {
-                                source: profile == MainAdapter.active-profile ? @image-url("../icons/emblem-default.svg") : @image-url("../icons/folder.svg");
+                                source: profile.name == MainAdapter.active-profile ? @image-url("../icons/emblem-default.svg") : @image-url("../icons/folder.svg");
                                 width: 20px;
                                 height: 20px;
                             }
 
                             MaterialText {
-                                text: profile;
+                                text: profile.name;
                                 style: Typography.body_medium;
                             }
 
                             Rectangle { horizontal-stretch: 1; }
 
-                            if MainAdapter.active-profile == profile: MaterialText {
+                            if profile.is-subscription: TextButton {
+                                text: "Update";
+                                enabled: !MainAdapter.core-busy;
+                                clicked => {
+                                    MainAdapter.update-profile(profile.name);
+                                }
+                            }
+
+                            if MainAdapter.active-profile == profile.name: MaterialText {
                                 text: "Selected";
                                 style: Typography.label_medium;
                                 opacity: 0.6;
                             }
 
-                            if MainAdapter.active-profile != profile: TextButton {
+                            if MainAdapter.active-profile != profile.name: TextButton {
                                 text: "Select";
                                 enabled: !MainAdapter.core-busy;
                                 clicked => {
-                                    MainAdapter.select-profile(profile);
+                                    MainAdapter.select-profile(profile.name);
                                 }
                             }
                         }

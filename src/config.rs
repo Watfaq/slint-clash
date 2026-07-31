@@ -12,6 +12,13 @@ pub struct Config {
     pub active_profile: Option<String>,
     pub api_port: u16,
     pub api_secret: Option<String>,
+    pub subscriptions: Vec<Subscription>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+pub struct Subscription {
+    pub name: String,
+    pub url: String,
 }
 
 impl Default for Config {
@@ -22,6 +29,7 @@ impl Default for Config {
             active_profile: None,
             api_port: 9090,
             api_secret: None,
+            subscriptions: Vec::new(),
         }
     }
 }
@@ -75,6 +83,27 @@ impl Config {
             .as_deref()
             .and_then(|profile| self.profile_path(profile))
             .unwrap_or_else(|| self.config_dir().join("config.yaml"))
+    }
+
+    pub fn subscription_url(&self, profile: &str) -> Option<&str> {
+        self.subscriptions
+            .iter()
+            .find(|subscription| subscription.name == profile)
+            .map(|subscription| subscription.url.as_str())
+    }
+
+    pub fn upsert_subscription(&mut self, name: String, url: String) {
+        if let Some(subscription) = self
+            .subscriptions
+            .iter_mut()
+            .find(|subscription| subscription.name == name)
+        {
+            subscription.url = url;
+        } else {
+            self.subscriptions.push(Subscription { name, url });
+            self.subscriptions
+                .sort_by_key(|subscription| subscription.name.to_lowercase());
+        }
     }
 
     pub fn save(&self) -> eyre::Result<()> {
@@ -149,5 +178,14 @@ mod tests {
         assert_eq!(config.profile_path("missing"), None);
 
         std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn updates_subscription_metadata_without_duplicates() {
+        let mut config = Config::default();
+        config.upsert_subscription("Work".to_owned(), "https://one.test".to_owned());
+        config.upsert_subscription("Work".to_owned(), "https://two.test".to_owned());
+        assert_eq!(config.subscriptions.len(), 1);
+        assert_eq!(config.subscription_url("Work"), Some("https://two.test"));
     }
 }

@@ -1,0 +1,200 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+import { Typography, ElevatedCard, FilledCard, OutlineButton, TextButton,
+         MaterialText, HorizontalDivider, Icon, ScrollView } from "@material";
+import { MainAdapter } from "../components/main_adapter.slint";
+
+export { MainAdapter as ProxiesViewAdapter }
+
+component ProxyGroupList {
+    width: 100%;
+
+    ElevatedCard {
+        width: 100%;
+        VerticalLayout {
+            padding: 12px;
+            spacing: 4px;
+
+            MaterialText {
+                text: "Groups";
+                style: Typography.title_small;
+            }
+            HorizontalDivider { width: 100%; }
+
+            for group in MainAdapter.proxy-groups: TextButton {
+                width: 100%;
+                text: (group.name == MainAdapter.active-proxy-group ? "✓ " : "")
+                    + group.name + " (" + group.count + ")";
+                enabled: !MainAdapter.core-busy;
+                clicked => {
+                    MainAdapter.select-proxy-group(group.name);
+                }
+            }
+        }
+    }
+}
+
+component ProxyNodeList {
+    width: 100%;
+
+    VerticalLayout {
+        spacing: 10px;
+
+        MaterialText {
+            text: MainAdapter.active-proxy-group;
+            style: Typography.title_medium;
+        }
+
+        for node in MainAdapter.proxy-nodes: FilledCard {
+            width: 100%;
+            HorizontalLayout {
+                padding: 14px;
+                spacing: 12px;
+                alignment: center;
+
+                VerticalLayout {
+                    spacing: 3px;
+                    horizontal-stretch: 1;
+                    MaterialText {
+                        text: node.name;
+                        style: Typography.body_large;
+                        overflow: elide;
+                    }
+                    MaterialText {
+                        text: node.kind == "" ? "Proxy" : node.kind;
+                        style: Typography.label_small;
+                        opacity: 0.55;
+                    }
+                }
+
+                MaterialText {
+                    text: node.delay;
+                    style: Typography.label_medium;
+                    color: node.alive ? #81c784 : #ef9a9a;
+                }
+
+                TextButton {
+                    text: "Test";
+                    enabled: !MainAdapter.core-busy;
+                    clicked => {
+                        MainAdapter.test-proxy-delay(
+                            MainAdapter.active-proxy-group,
+                            node.name
+                        );
+                    }
+                }
+
+                if node.selected: MaterialText {
+                    text: "Selected";
+                    style: Typography.label_medium;
+                    color: #8ab4f8;
+                }
+
+                if !node.selected: OutlineButton {
+                    text: "Select";
+                    enabled: !MainAdapter.core-busy;
+                    clicked => {
+                        MainAdapter.select-proxy(
+                            MainAdapter.active-proxy-group,
+                            node.name
+                        );
+                    }
+                }
+            }
+        }
+    }
+}
+
+export component ProxiesView {
+    width: 100%;
+    height: 100%;
+
+    ScrollView {
+        VerticalLayout {
+            padding: 16px;
+            spacing: 16px;
+            width: 100%;
+
+            HorizontalLayout {
+                height: 48px;
+                alignment: center;
+                MaterialText {
+                    text: "Proxies";
+                    style: Typography.title_large;
+                }
+                Rectangle { horizontal-stretch: 1; }
+                OutlineButton {
+                    height: 40px;
+                    text: "Refresh";
+                    enabled: MainAdapter.core-running && !MainAdapter.core-busy;
+                    clicked => {
+                        MainAdapter.refresh-proxies();
+                    }
+                }
+            }
+
+            if !MainAdapter.core-running: ElevatedCard {
+                width: 100%;
+                VerticalLayout {
+                    alignment: center;
+                    spacing: 12px;
+                    padding: 32px;
+
+                    Icon {
+                        source: @image-url("../icons/network-wireless-disabled.svg");
+                        width: 44px;
+                        height: 44px;
+                    }
+                    MaterialText {
+                        text: "Mihomo core is stopped";
+                        style: Typography.title_medium;
+                    }
+                    MaterialText {
+                        text: "Start the core to load proxy groups.";
+                        style: Typography.body_medium;
+                        opacity: 0.6;
+                    }
+                }
+            }
+
+            if MainAdapter.core-running && MainAdapter.proxy-groups.length == 0: ElevatedCard {
+                width: 100%;
+                VerticalLayout {
+                    alignment: center;
+                    spacing: 10px;
+                    padding: 32px;
+                    MaterialText {
+                        text: MainAdapter.core-busy ? "Loading proxy groups…" : "No proxy groups available";
+                        style: Typography.title_medium;
+                    }
+                    MaterialText {
+                        text: "Check the active profile and refresh this page.";
+                        style: Typography.body_medium;
+                        opacity: 0.6;
+                    }
+                }
+            }
+
+            if MainAdapter.core-running && MainAdapter.proxy-groups.length > 0 && root.width >= 620px: HorizontalLayout {
+                spacing: 16px;
+                width: 100%;
+                alignment: start;
+
+                ProxyGroupList {
+                    width: 210px;
+                }
+                ProxyNodeList {
+                    horizontal-stretch: 1;
+                }
+            }
+
+            if MainAdapter.core-running && MainAdapter.proxy-groups.length > 0 && root.width < 620px: VerticalLayout {
+                spacing: 16px;
+                width: 100%;
+
+                ProxyGroupList { width: 100%; }
+                ProxyNodeList { width: 100%; }
+            }
+        }
+    }
+}

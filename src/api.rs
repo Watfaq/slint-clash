@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-use std::time::Duration;
+use std::{collections::BTreeMap, time::Duration};
 
 use reqwest::{Method, RequestBuilder};
 use serde::Deserialize;
@@ -34,6 +34,37 @@ pub struct RuntimeConfig {
     pub mixed_port: Option<u16>,
 }
 
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct ProxySnapshot {
+    #[serde(default)]
+    pub proxies: BTreeMap<String, ProxyEntry>,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct ProxyEntry {
+    #[serde(rename = "type", default)]
+    pub kind: String,
+    #[serde(default)]
+    pub now: String,
+    #[serde(default)]
+    pub all: Vec<String>,
+    #[serde(default)]
+    pub alive: bool,
+    #[serde(default)]
+    pub history: Vec<DelayHistory>,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct DelayHistory {
+    #[serde(default)]
+    pub delay: u32,
+}
+
+#[derive(Debug, Clone, Deserialize, Default, PartialEq, Eq)]
+pub struct ProxyDelay {
+    pub delay: u32,
+}
+
 #[derive(Debug, Clone, serde::Serialize)]
 struct ConfigReloadRequest<'a> {
     path: &'a str,
@@ -42,6 +73,11 @@ struct ConfigReloadRequest<'a> {
 #[derive(Debug, Clone, serde::Serialize)]
 struct ModePatchRequest<'a> {
     mode: &'a str,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+struct ProxySelectionRequest<'a> {
+    name: &'a str,
 }
 
 impl ClashApi {
@@ -118,6 +154,44 @@ impl ClashApi {
         Ok(())
     }
 
+    pub async fn proxies(&self) -> eyre::Result<ProxySnapshot> {
+        let response = self
+            .build_request(Method::GET, "/proxies")
+            .timeout(Duration::from_secs(10))
+            .send()
+            .await?
+            .error_for_status()?;
+        Ok(response.json().await?)
+    }
+
+    pub async fn select_proxy(&self, group: &str, proxy: &str) -> eyre::Result<()> {
+        let path = format!("/proxies/{}", encode_path_segment(group));
+        self.build_request(Method::PUT, &path)
+            .timeout(Duration::from_secs(5))
+            .json(&ProxySelectionRequest { name: proxy })
+            .send()
+            .await?
+            .error_for_status()?;
+        Ok(())
+    }
+
+    pub async fn proxy_delay(
+        &self,
+        proxy: &str,
+        test_url: &str,
+        timeout_ms: u32,
+    ) -> eyre::Result<ProxyDelay> {
+        let path = format!("/proxies/{}/delay", encode_path_segment(proxy));
+        let response = self
+            .build_request(Method::GET, &path)
+            .query(&[("url", test_url), ("timeout", &timeout_ms.to_string())])
+            .timeout(Duration::from_millis(u64::from(timeout_ms) + 2_000))
+            .send()
+            .await?
+            .error_for_status()?;
+        Ok(response.json().await?)
+    }
+
     /// Reads the first item from Mihomo's chunked `/traffic` stream.
     ///
     /// The endpoint stays open indefinitely, so reading the whole response body
@@ -169,6 +243,21 @@ fn parse_first_traffic(bytes: &[u8]) -> eyre::Result<Option<Traffic>> {
     Ok(None)
 }
 
+fn encode_path_segment(value: &str) -> String {
+    const HEX: &[u8; 16] = b"0123456789ABCDEF";
+    let mut encoded = String::with_capacity(value.len());
+    for byte in value.bytes() {
+        if byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'.' | b'_' | b'~') {
+            encoded.push(char::from(byte));
+        } else {
+            encoded.push('%');
+            encoded.push(char::from(HEX[(byte >> 4) as usize]));
+            encoded.push(char::from(HEX[(byte & 0x0f) as usize]));
+        }
+    }
+    encoded
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -176,6 +265,41 @@ mod tests {
         io::{AsyncReadExt, AsyncWriteExt},
         net::TcpListener,
     };
+
+    async fn read_http_request(socket: &mut tokio::net::TcpStream) -> Vec<u8> {
+        let mut request = Vec::new();
+        let mut chunk = [0_u8; 1024];
+
+        loop {
+            let length = socket.read(&mut chunk).await.unwrap();
+            if length == 0 {
+                break;
+            }
+            request.extend_from_slice(&chunk[..length]);
+
+            let Some(header_end) = request.windows(4).position(|window| window == b"\r\n\r\n")
+            else {
+                continue;
+            };
+            let header_end = header_end + 4;
+            let headers = String::from_utf8_lossy(&request[..header_end]);
+            let content_length = headers
+                .lines()
+                .find_map(|line| {
+                    let (name, value) = line.split_once(':')?;
+                    name.eq_ignore_ascii_case("content-length")
+                        .then(|| value.trim().parse::<usize>().ok())
+                        .flatten()
+                })
+                .unwrap_or_default();
+
+            if request.len() >= header_end + content_length {
+                break;
+            }
+        }
+
+        request
+    }
 
     #[test]
     fn parses_plain_and_sse_traffic_samples() {
@@ -200,6 +324,39 @@ mod tests {
     #[test]
     fn rejects_complete_invalid_json() {
         assert!(parse_first_traffic(b"{not-json}").is_err());
+    }
+
+    #[test]
+    fn encodes_proxy_names_as_single_url_segments() {
+        assert_eq!(encode_path_segment("香港/01"), "%E9%A6%99%E6%B8%AF%2F01");
+        assert_eq!(encode_path_segment("Proxy-A_1"), "Proxy-A_1");
+    }
+
+    #[test]
+    fn decodes_the_standard_mihomo_proxy_shape() {
+        let snapshot: ProxySnapshot = serde_json::from_str(
+            r#"{
+                "proxies": {
+                    "GLOBAL": {
+                        "name": "GLOBAL",
+                        "type": "Selector",
+                        "now": "Node A",
+                        "all": ["Node A", "DIRECT"],
+                        "alive": true,
+                        "history": []
+                    },
+                    "Node A": {
+                        "name": "Node A",
+                        "type": "Shadowsocks",
+                        "alive": true,
+                        "history": [{"time":"now","delay":86}]
+                    }
+                }
+            }"#,
+        )
+        .unwrap();
+        assert_eq!(snapshot.proxies["GLOBAL"].now, "Node A");
+        assert_eq!(snapshot.proxies["Node A"].history[0].delay, 86);
     }
 
     #[tokio::test]
@@ -238,6 +395,28 @@ mod tests {
                 version: Some("1.19.0".to_owned())
             }
         );
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn proxy_selection_encodes_the_group_and_sends_the_node_name() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = tokio::spawn(async move {
+            let (mut socket, _) = listener.accept().await.unwrap();
+            let request = read_http_request(&mut socket).await;
+            let request = String::from_utf8_lossy(&request);
+            assert!(request
+                .starts_with("PUT /proxies/%E9%A6%99%E6%B8%AF%2F%E8%87%AA%E9%80%89 HTTP/1.1\r\n"));
+            assert!(request.contains(r#"{"name":"Node A"}"#));
+            socket
+                .write_all(b"HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n")
+                .await
+                .unwrap();
+        });
+
+        let api = ClashApi::new(format!("http://{address}"), None);
+        api.select_proxy("香港/自选", "Node A").await.unwrap();
         server.await.unwrap();
     }
 }

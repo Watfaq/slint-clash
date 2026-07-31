@@ -8,6 +8,7 @@ mod controller;
 mod i18n;
 mod log;
 mod sidecar;
+mod subscription;
 
 use tracing::level_filters::LevelFilter;
 

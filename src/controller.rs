@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 use std::{
+    collections::HashMap,
     path::{Path, PathBuf},
     sync::{Arc, Mutex, MutexGuard},
     time::Duration,
@@ -9,12 +10,22 @@ use std::{
 use slint::ComponentHandle;
 use tokio::runtime::Handle;
 
-use crate::{api::ClashApi, config::Config, sidecar::SidecarManager, MainAdapter, MainWindow};
+use crate::{
+    api::{ClashApi, ProxySnapshot},
+    config::Config,
+    sidecar::SidecarManager,
+    subscription::SubscriptionService,
+    MainAdapter, MainWindow, ProfileItem, ProxyGroupItem, ProxyNodeItem,
+};
 
 struct AppState {
     config: Config,
     sidecar: Option<SidecarManager>,
     api: Option<Arc<ClashApi>>,
+    subscription_service: SubscriptionService,
+    proxy_snapshot: Option<ProxySnapshot>,
+    active_proxy_group: Option<String>,
+    proxy_delays: HashMap<(String, String), u32>,
     generation: u64,
     shutting_down: bool,
 }
@@ -36,6 +47,10 @@ impl Controller {
             config,
             sidecar: None,
             api: None,
+            subscription_service: SubscriptionService::new(),
+            proxy_snapshot: None,
+            active_proxy_group: None,
+            proxy_delays: HashMap::new(),
             generation: 0,
             shutting_down: false,
         }));
@@ -43,7 +58,9 @@ impl Controller {
         initialize_ui(window, &state, load_error);
         bind_core_toggle(window, &state, &runtime);
         bind_mode_selection(window, &state, &runtime);
+        bind_subscription_actions(window, &state, &runtime);
         bind_profile_actions(window, &state, &runtime);
+        bind_proxy_actions(window, &state, &runtime);
         bind_setting_actions(window, &state);
         spawn_monitor(window.as_weak(), state.clone(), runtime);
 
@@ -178,6 +195,7 @@ fn start_core(weak_window: slint::Weak<MainWindow>, state: Arc<Mutex<AppState>>,
             .await
             .map(|config| mode_index(&config.mode))
             .unwrap_or(0);
+        let proxy_snapshot = api.proxies().await.ok();
 
         let mut sidecar = Some(sidecar);
         let accepted = {
@@ -185,6 +203,9 @@ fn start_core(weak_window: slint::Weak<MainWindow>, state: Arc<Mutex<AppState>>,
             if state.generation == generation && !state.shutting_down {
                 state.sidecar = sidecar.take();
                 state.api = Some(api);
+                state.proxy_snapshot = proxy_snapshot;
+                state.active_proxy_group = choose_proxy_group(state.proxy_snapshot.as_ref(), None);
+                state.proxy_delays.clear();
                 true
             } else {
                 false
@@ -206,6 +227,7 @@ fn start_core(weak_window: slint::Weak<MainWindow>, state: Arc<Mutex<AppState>>,
                 adapter.set_clash_version(version.into());
                 adapter.set_clash_mode_index(mode_index);
                 adapter.set_status_message("Mihomo core is running".into());
+                apply_proxy_models(&window, &state);
             }
         });
     });
@@ -265,6 +287,364 @@ fn bind_mode_selection(window: &MainWindow, state: &Arc<Mutex<AppState>>, runtim
         });
 }
 
+fn bind_subscription_actions(window: &MainWindow, state: &Arc<Mutex<AppState>>, runtime: &Handle) {
+    let weak_window = window.as_weak();
+    window.global::<MainAdapter>().on_cancel_import(move || {
+        if let Some(window) = weak_window.upgrade() {
+            let adapter = window.global::<MainAdapter>();
+            adapter.set_show_import_ui(false);
+            adapter.set_import_name("".into());
+            adapter.set_import_url("".into());
+        }
+    });
+
+    let weak_window = window.as_weak();
+    let shared_state = state.clone();
+    let runtime_handle = runtime.clone();
+    window
+        .global::<MainAdapter>()
+        .on_import_profile(move |name, url| {
+            let name = name.trim().to_owned();
+            let url = url.trim().to_owned();
+            if name.is_empty() || url.is_empty() {
+                set_error(
+                    weak_window.clone(),
+                    "Profile name and subscription URL are required".to_owned(),
+                );
+                return;
+            }
+
+            let (service, config_dir, core_running) = {
+                let state = lock(&shared_state);
+                (
+                    state.subscription_service.clone(),
+                    state.config.config_dir(),
+                    state.api.is_some(),
+                )
+            };
+            set_busy_status(
+                weak_window.clone(),
+                true,
+                format!("Importing subscription “{name}”…"),
+            );
+
+            let weak_window = weak_window.clone();
+            let state = shared_state.clone();
+            runtime_handle.spawn(async move {
+                let result = async {
+                    let staged = service.download(&url, &config_dir, &name, false).await?;
+                    let mut config = lock(&state).config.clone();
+                    config.upsert_subscription(name.clone(), url);
+                    if config.active_profile.is_none() && !core_running {
+                        config.active_profile = Some(name.clone());
+                    }
+                    if let Err(error) = config.save() {
+                        let _ = staged.rollback();
+                        return Err(error);
+                    }
+                    staged.commit()?;
+                    lock(&state).config = config.clone();
+                    Ok::<_, eyre::Report>(config)
+                }
+                .await;
+
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(window) = weak_window.upgrade() {
+                        let adapter = window.global::<MainAdapter>();
+                        adapter.set_core_busy(false);
+                        match result {
+                            Ok(config) => {
+                                adapter.set_show_import_ui(false);
+                                adapter.set_import_name("".into());
+                                adapter.set_import_url("".into());
+                                adapter.set_active_profile(
+                                    config.active_profile.clone().unwrap_or_default().into(),
+                                );
+                                adapter.set_status_message(
+                                    format!("Imported subscription “{name}”").into(),
+                                );
+                                adapter.set_error_message("".into());
+                                if let Err(error) = scan_profiles_into(&config, &adapter) {
+                                    adapter.set_error_message(error.to_string().into());
+                                }
+                            }
+                            Err(error) => {
+                                adapter.set_status_message("Subscription import failed".into());
+                                adapter.set_error_message(error.to_string().into());
+                            }
+                        }
+                    }
+                });
+            });
+        });
+
+    let weak_window = window.as_weak();
+    let shared_state = state.clone();
+    let runtime_handle = runtime.clone();
+    window
+        .global::<MainAdapter>()
+        .on_update_profile(move |profile| {
+            let profile = profile.to_string();
+            let operation = {
+                let state = lock(&shared_state);
+                state.config.subscription_url(&profile).map(|url| {
+                    (
+                        state.subscription_service.clone(),
+                        state.config.config_dir(),
+                        url.to_owned(),
+                        state.api.clone(),
+                        state.config.active_profile.as_deref() == Some(profile.as_str()),
+                    )
+                })
+            };
+            let Some((service, config_dir, url, api, is_active)) = operation else {
+                set_error(
+                    weak_window.clone(),
+                    format!("Profile “{profile}” is not a managed subscription"),
+                );
+                return;
+            };
+
+            set_busy_status(
+                weak_window.clone(),
+                true,
+                format!("Updating subscription “{profile}”…"),
+            );
+            let weak_window = weak_window.clone();
+            let state = shared_state.clone();
+            runtime_handle.spawn(async move {
+                let result = async {
+                    let staged = service
+                        .download(&url, &config_dir, &profile, true)
+                        .await?;
+                    let mut refreshed_snapshot = None;
+                    if is_active {
+                        if let Some(api) = &api {
+                            if let Err(error) =
+                                api.reload_config(&staged.path().to_string_lossy()).await
+                            {
+                                let rollback_error = staged.rollback().err();
+                                return Err(match rollback_error {
+                                    Some(rollback_error) => eyre::eyre!(
+                                        "{error}; restoring the previous profile also failed: {rollback_error}"
+                                    ),
+                                    None => error,
+                                });
+                            }
+                            refreshed_snapshot = api.proxies().await.ok();
+                        }
+                    }
+                    staged.commit()?;
+                    if let Some(snapshot) = refreshed_snapshot {
+                        let mut state = lock(&state);
+                        state.proxy_snapshot = Some(snapshot);
+                        state.active_proxy_group = choose_proxy_group(
+                            state.proxy_snapshot.as_ref(),
+                            state.active_proxy_group.as_deref(),
+                        );
+                        state.proxy_delays.clear();
+                    }
+                    Ok::<_, eyre::Report>(())
+                }
+                .await;
+
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(window) = weak_window.upgrade() {
+                        let adapter = window.global::<MainAdapter>();
+                        adapter.set_core_busy(false);
+                        match result {
+                            Ok(()) => {
+                                adapter.set_status_message(
+                                    format!("Updated subscription “{profile}”").into(),
+                                );
+                                adapter.set_error_message("".into());
+                                apply_proxy_models(&window, &state);
+                            }
+                            Err(error) => {
+                                adapter.set_status_message("Subscription update failed".into());
+                                adapter.set_error_message(error.to_string().into());
+                            }
+                        }
+                    }
+                });
+            });
+        });
+}
+
+fn bind_proxy_actions(window: &MainWindow, state: &Arc<Mutex<AppState>>, runtime: &Handle) {
+    let weak_window = window.as_weak();
+    let shared_state = state.clone();
+    let runtime_handle = runtime.clone();
+    window.global::<MainAdapter>().on_refresh_proxies(move || {
+        let api = lock(&shared_state).api.clone();
+        let Some(api) = api else {
+            set_error(
+                weak_window.clone(),
+                "Start the Mihomo core before refreshing proxies".to_owned(),
+            );
+            return;
+        };
+        set_busy_status(
+            weak_window.clone(),
+            true,
+            "Refreshing proxy groups…".to_owned(),
+        );
+        let weak_window = weak_window.clone();
+        let state = shared_state.clone();
+        runtime_handle.spawn(async move {
+            let result = api.proxies().await;
+            if let Ok(snapshot) = &result {
+                let mut state = lock(&state);
+                state.proxy_snapshot = Some(snapshot.clone());
+                state.active_proxy_group = choose_proxy_group(
+                    state.proxy_snapshot.as_ref(),
+                    state.active_proxy_group.as_deref(),
+                );
+            }
+            finish_proxy_operation(
+                weak_window,
+                state,
+                result.map(|_| "Proxy groups refreshed".to_owned()),
+            );
+        });
+    });
+
+    let weak_window = window.as_weak();
+    let shared_state = state.clone();
+    window
+        .global::<MainAdapter>()
+        .on_select_proxy_group(move |group| {
+            let group = group.to_string();
+            let valid = {
+                let mut state = lock(&shared_state);
+                let valid = state
+                    .proxy_snapshot
+                    .as_ref()
+                    .and_then(|snapshot| snapshot.proxies.get(&group))
+                    .is_some_and(is_proxy_group);
+                if valid {
+                    state.active_proxy_group = Some(group);
+                }
+                valid
+            };
+            if let Some(window) = weak_window.upgrade() {
+                if valid {
+                    apply_proxy_models(&window, &shared_state);
+                } else {
+                    window
+                        .global::<MainAdapter>()
+                        .set_error_message("Proxy group is no longer available".into());
+                }
+            }
+        });
+
+    let weak_window = window.as_weak();
+    let shared_state = state.clone();
+    let runtime_handle = runtime.clone();
+    window
+        .global::<MainAdapter>()
+        .on_select_proxy(move |group, proxy| {
+            let group = group.to_string();
+            let proxy = proxy.to_string();
+            let api = {
+                let state = lock(&shared_state);
+                if !proxy_belongs_to_group(state.proxy_snapshot.as_ref(), &group, &proxy) {
+                    None
+                } else {
+                    state.api.clone()
+                }
+            };
+            let Some(api) = api else {
+                set_error(
+                    weak_window.clone(),
+                    "The selected proxy is no longer available".to_owned(),
+                );
+                return;
+            };
+
+            set_busy_status(weak_window.clone(), true, format!("Selecting “{proxy}”…"));
+            let weak_window = weak_window.clone();
+            let state = shared_state.clone();
+            runtime_handle.spawn(async move {
+                let result = async {
+                    api.select_proxy(&group, &proxy).await?;
+                    let snapshot = api.proxies().await?;
+                    let mut state = lock(&state);
+                    state.proxy_snapshot = Some(snapshot);
+                    state.active_proxy_group = Some(group);
+                    Ok::<_, eyre::Report>(format!("Selected proxy “{proxy}”"))
+                }
+                .await;
+                finish_proxy_operation(weak_window, state, result);
+            });
+        });
+
+    let weak_window = window.as_weak();
+    let shared_state = state.clone();
+    let runtime_handle = runtime.clone();
+    window
+        .global::<MainAdapter>()
+        .on_test_proxy_delay(move |group, proxy| {
+            let group = group.to_string();
+            let proxy = proxy.to_string();
+            let api = {
+                let state = lock(&shared_state);
+                if !proxy_belongs_to_group(state.proxy_snapshot.as_ref(), &group, &proxy) {
+                    None
+                } else {
+                    state.api.clone()
+                }
+            };
+            let Some(api) = api else {
+                set_error(
+                    weak_window.clone(),
+                    "The selected proxy is no longer available".to_owned(),
+                );
+                return;
+            };
+
+            set_busy_status(weak_window.clone(), true, format!("Testing “{proxy}”…"));
+            let weak_window = weak_window.clone();
+            let state = shared_state.clone();
+            runtime_handle.spawn(async move {
+                let result = api
+                    .proxy_delay(&proxy, "http://cp.cloudflare.com/generate_204", 8_000)
+                    .await
+                    .map(|delay| {
+                        lock(&state)
+                            .proxy_delays
+                            .insert((group, proxy.clone()), delay.delay);
+                        format!("“{proxy}” latency: {} ms", delay.delay)
+                    });
+                finish_proxy_operation(weak_window, state, result);
+            });
+        });
+}
+
+fn finish_proxy_operation(
+    weak_window: slint::Weak<MainWindow>,
+    state: Arc<Mutex<AppState>>,
+    result: eyre::Result<String>,
+) {
+    let _ = slint::invoke_from_event_loop(move || {
+        if let Some(window) = weak_window.upgrade() {
+            let adapter = window.global::<MainAdapter>();
+            adapter.set_core_busy(false);
+            match result {
+                Ok(status) => {
+                    adapter.set_status_message(status.into());
+                    adapter.set_error_message("".into());
+                    apply_proxy_models(&window, &state);
+                }
+                Err(error) => {
+                    adapter.set_status_message("Proxy operation failed".into());
+                    adapter.set_error_message(error.to_string().into());
+                }
+            }
+        }
+    });
+}
+
 fn report_start_failure(weak_window: slint::Weak<MainWindow>, message: String) {
     tracing::error!(%message, "Could not start Mihomo core");
     let _ = slint::invoke_from_event_loop(move || {
@@ -283,6 +663,9 @@ fn stop_core(weak_window: slint::Weak<MainWindow>, state: Arc<Mutex<AppState>>, 
         let mut state = lock(&state);
         state.generation = state.generation.wrapping_add(1);
         state.api = None;
+        state.proxy_snapshot = None;
+        state.active_proxy_group = None;
+        state.proxy_delays.clear();
         state.sidecar.take()
     };
 
@@ -311,6 +694,7 @@ fn stop_core(weak_window: slint::Weak<MainWindow>, state: Arc<Mutex<AppState>>, 
                 adapter.set_traffic_upload("—".into());
                 adapter.set_traffic_download("—".into());
                 adapter.set_status_message("Core is stopped".into());
+                clear_proxy_models(&adapter);
                 if let Err(error) = result {
                     adapter.set_error_message(
                         format!("Could not stop Mihomo cleanly: {error}").into(),
@@ -346,7 +730,11 @@ fn bind_profile_actions(window: &MainWindow, state: &Arc<Mutex<AppState>>, runti
                 let weak_window = weak_window.clone();
                 let state = shared_state.clone();
                 runtime_handle.spawn(async move {
-                    let result = api.reload_config(&path.to_string_lossy()).await;
+                    let result = async {
+                        api.reload_config(&path.to_string_lossy()).await?;
+                        Ok::<_, eyre::Report>(api.proxies().await.ok())
+                    }
+                    .await;
                     finish_profile_selection(weak_window, state, profile, result);
                 });
             } else {
@@ -354,7 +742,7 @@ fn bind_profile_actions(window: &MainWindow, state: &Arc<Mutex<AppState>>, runti
                     weak_window.clone(),
                     shared_state.clone(),
                     profile,
-                    Ok(()),
+                    Ok(None),
                 );
             }
         });
@@ -387,15 +775,27 @@ fn bind_profile_actions(window: &MainWindow, state: &Arc<Mutex<AppState>>, runti
             "Reloading active profile…".to_owned(),
         );
         let weak_window = weak_window.clone();
+        let state = shared_state.clone();
         runtime_handle.spawn(async move {
-            let result = api.reload_config(&path.to_string_lossy()).await;
+            let result = async {
+                api.reload_config(&path.to_string_lossy()).await?;
+                api.proxies().await
+            }
+            .await;
+            if let Ok(snapshot) = &result {
+                let mut state = lock(&state);
+                state.proxy_snapshot = Some(snapshot.clone());
+                state.active_proxy_group = choose_proxy_group(state.proxy_snapshot.as_ref(), None);
+                state.proxy_delays.clear();
+            }
             let _ = slint::invoke_from_event_loop(move || {
                 if let Some(window) = weak_window.upgrade() {
                     let adapter = window.global::<MainAdapter>();
                     adapter.set_core_busy(false);
                     match result {
-                        Ok(()) => {
+                        Ok(_) => {
                             adapter.set_status_message("Active profile reloaded".into());
+                            apply_proxy_models(&window, &state);
                         }
                         Err(error) => {
                             adapter.set_error_message(error.to_string().into());
@@ -412,12 +812,17 @@ fn finish_profile_selection(
     weak_window: slint::Weak<MainWindow>,
     state: Arc<Mutex<AppState>>,
     profile: String,
-    reload_result: eyre::Result<()>,
+    reload_result: eyre::Result<Option<ProxySnapshot>>,
 ) {
-    let result = reload_result.and_then(|()| {
+    let result = reload_result.and_then(|snapshot| {
         let config = {
             let mut state = lock(&state);
             state.config.active_profile = Some(profile.clone());
+            if let Some(snapshot) = snapshot {
+                state.proxy_snapshot = Some(snapshot);
+                state.active_proxy_group = choose_proxy_group(state.proxy_snapshot.as_ref(), None);
+                state.proxy_delays.clear();
+            }
             state.config.clone()
         };
         config.save()
@@ -432,6 +837,7 @@ fn finish_profile_selection(
                     adapter.set_active_profile(profile.clone().into());
                     adapter.set_status_message(format!("Profile “{profile}” is active").into());
                     adapter.set_error_message("".into());
+                    apply_proxy_models(&window, &state);
                 }
                 Err(error) => {
                     adapter.set_status_message("Profile activation failed".into());
@@ -614,6 +1020,7 @@ fn spawn_monitor(
                         adapter.set_error_message(message.into());
                         adapter.set_traffic_upload("—".into());
                         adapter.set_traffic_download("—".into());
+                        clear_proxy_models(&adapter);
                     }
                 });
                 continue;
@@ -653,21 +1060,137 @@ fn spawn_monitor(
     });
 }
 
+fn is_proxy_group(entry: &crate::api::ProxyEntry) -> bool {
+    !entry.all.is_empty()
+        && matches!(
+            entry.kind.to_ascii_lowercase().as_str(),
+            "selector" | "urltest" | "fallback"
+        )
+}
+
+fn choose_proxy_group(snapshot: Option<&ProxySnapshot>, preferred: Option<&str>) -> Option<String> {
+    let snapshot = snapshot?;
+    if let Some(preferred) = preferred {
+        if snapshot.proxies.get(preferred).is_some_and(is_proxy_group) {
+            return Some(preferred.to_owned());
+        }
+    }
+
+    snapshot
+        .proxies
+        .iter()
+        .find(|(name, entry)| name.as_str() != "GLOBAL" && is_proxy_group(entry))
+        .or_else(|| {
+            snapshot
+                .proxies
+                .iter()
+                .find(|(_, entry)| is_proxy_group(entry))
+        })
+        .map(|(name, _)| name.clone())
+}
+
+fn proxy_belongs_to_group(snapshot: Option<&ProxySnapshot>, group: &str, proxy: &str) -> bool {
+    snapshot
+        .and_then(|snapshot| snapshot.proxies.get(group))
+        .is_some_and(|entry| is_proxy_group(entry) && entry.all.iter().any(|name| name == proxy))
+}
+
+fn apply_proxy_models(window: &MainWindow, state: &Arc<Mutex<AppState>>) {
+    let adapter = window.global::<MainAdapter>();
+    let (groups, nodes, active_group) = {
+        let mut state = lock(state);
+        let active_group = choose_proxy_group(
+            state.proxy_snapshot.as_ref(),
+            state.active_proxy_group.as_deref(),
+        );
+        state.active_proxy_group = active_group.clone();
+        let Some(snapshot) = state.proxy_snapshot.as_ref() else {
+            clear_proxy_models(&adapter);
+            return;
+        };
+
+        let groups = snapshot
+            .proxies
+            .iter()
+            .filter(|(_, entry)| is_proxy_group(entry))
+            .map(|(name, entry)| ProxyGroupItem {
+                name: name.clone().into(),
+                kind: entry.kind.clone().into(),
+                selected: entry.now.clone().into(),
+                count: entry.all.len() as i32,
+            })
+            .collect::<Vec<_>>();
+
+        let nodes = active_group
+            .as_deref()
+            .and_then(|group| snapshot.proxies.get(group).map(|entry| (group, entry)))
+            .map(|(group, entry)| {
+                entry
+                    .all
+                    .iter()
+                    .map(|name| {
+                        let details = snapshot.proxies.get(name);
+                        let measured = state
+                            .proxy_delays
+                            .get(&(group.to_owned(), name.clone()))
+                            .copied()
+                            .or_else(|| {
+                                details.and_then(|details| {
+                                    details.history.last().map(|history| history.delay)
+                                })
+                            });
+                        ProxyNodeItem {
+                            name: name.clone().into(),
+                            kind: details
+                                .map(|details| details.kind.clone())
+                                .unwrap_or_default()
+                                .into(),
+                            delay: measured
+                                .map(format_delay)
+                                .unwrap_or_else(|| "—".to_owned())
+                                .into(),
+                            alive: details.map(|details| details.alive).unwrap_or(true),
+                            selected: entry.now == *name,
+                        }
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        (groups, nodes, active_group.unwrap_or_default())
+    };
+
+    adapter.set_proxy_groups(std::rc::Rc::new(slint::VecModel::from(groups)).into());
+    adapter.set_proxy_nodes(std::rc::Rc::new(slint::VecModel::from(nodes)).into());
+    adapter.set_active_proxy_group(active_group.into());
+}
+
+fn clear_proxy_models(adapter: &MainAdapter) {
+    adapter.set_proxy_groups(std::rc::Rc::new(slint::VecModel::<ProxyGroupItem>::default()).into());
+    adapter.set_proxy_nodes(std::rc::Rc::new(slint::VecModel::<ProxyNodeItem>::default()).into());
+    adapter.set_active_proxy_group("".into());
+}
+
+fn format_delay(delay: u32) -> String {
+    if delay == 0 {
+        "Timeout".to_owned()
+    } else {
+        format!("{delay} ms")
+    }
+}
+
 fn scan_profiles_into(config: &Config, adapter: &MainAdapter) -> eyre::Result<()> {
     let directory = config.config_dir();
     let entries = match std::fs::read_dir(&directory) {
         Ok(entries) => entries,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            adapter.set_profiles(
-                std::rc::Rc::new(slint::VecModel::<slint::SharedString>::default()).into(),
-            );
+            adapter
+                .set_profiles(std::rc::Rc::new(slint::VecModel::<ProfileItem>::default()).into());
             adapter.set_profiles_loaded(true);
             return Ok(());
         }
         Err(error) => {
-            adapter.set_profiles(
-                std::rc::Rc::new(slint::VecModel::<slint::SharedString>::default()).into(),
-            );
+            adapter
+                .set_profiles(std::rc::Rc::new(slint::VecModel::<ProfileItem>::default()).into());
             adapter.set_profiles_loaded(true);
             return Err(eyre::eyre!(
                 "Could not read configuration directory '{}': {error}",
@@ -684,7 +1207,10 @@ fn scan_profiles_into(config: &Config, adapter: &MainAdapter) -> eyre::Result<()
     profiles.dedup();
     let profiles = profiles
         .into_iter()
-        .map(slint::SharedString::from)
+        .map(|name| ProfileItem {
+            is_subscription: config.subscription_url(&name).is_some(),
+            name: name.into(),
+        })
         .collect::<Vec<_>>();
     adapter.set_profiles(std::rc::Rc::new(slint::VecModel::from(profiles)).into());
     adapter.set_profiles_loaded(true);
@@ -693,7 +1219,7 @@ fn scan_profiles_into(config: &Config, adapter: &MainAdapter) -> eyre::Result<()
 
 fn profile_name(path: PathBuf) -> Option<String> {
     let extension = path.extension()?.to_str()?;
-    if !matches!(extension, "yaml" | "yml") {
+    if !extension.eq_ignore_ascii_case("yaml") && !extension.eq_ignore_ascii_case("yml") {
         return None;
     }
     path.file_stem()?.to_str().map(ToOwned::to_owned)
