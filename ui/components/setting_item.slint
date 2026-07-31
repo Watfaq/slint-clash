@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Reusable settings entry with inline editing
 
-import { Typography, FilledButton, TextButton, MaterialText, MaterialPalette, TextField } from "@material";
+import { Typography, FilledButton, TextButton, ListTile, MaterialText,
+         MaterialPalette, TextField } from "@material";
 import { MainAdapter } from "./main_adapter.slint";
 
 export component SettingItem {
@@ -11,34 +12,18 @@ export component SettingItem {
     in property <string> description;
 
     width: 100%;
-    min-height: 62px;
+    min-height: 72px;
 
-    if !MainAdapter.show-edit-ui || MainAdapter.editing-field-index != root.idx: Rectangle {
-        border-radius: 12px;
-        background: item-touch.has-hover ? MaterialPalette.surface-container-high : transparent;
+    if !MainAdapter.show-edit-ui || MainAdapter.editing-field-index != root.idx: ListTile {
+        width: 100%;
+        text: root.label;
+        supporting-text: root.description;
+        clicked => {
+            MainAdapter.start-edit(root.idx);
+        }
 
         HorizontalLayout {
-            spacing: 12px;
-            padding-left: 10px;
-            padding-right: 6px;
-            padding-top: 9px;
-            padding-bottom: 9px;
-            width: 100%;
-
-            VerticalLayout {
-                spacing: 2px;
-                horizontal-stretch: 1;
-                MaterialText {
-                    text: root.label;
-                    style: Typography.body-large;
-                }
-                MaterialText {
-                    text: root.description;
-                    style: Typography.label-small;
-                    color: MaterialPalette.on-surface-variant;
-                }
-            }
-
+            spacing: 8px;
             Rectangle {
                 max-width: 260px;
                 height: 30px;
@@ -58,13 +43,6 @@ export component SettingItem {
                 text: "Edit";
                 style: Typography.label-medium;
                 color: MaterialPalette.primary;
-            }
-        }
-
-        item-touch := TouchArea {
-            mouse-cursor: pointer;
-            clicked => {
-                MainAdapter.start-edit(root.idx);
             }
         }
     }

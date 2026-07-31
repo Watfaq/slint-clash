@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import { MaterialWindow, MaterialText, Typography, MaterialPalette, Icon,
-         LinearProgressIndicator, TextButton } from "@material";
+         LinearProgressIndicator, SnackBar } from "@material";
 import { HomeView } from "./pages/home.slint";
 import { ProxiesView } from "./pages/proxies.slint";
 import { ProfileView } from "./pages/profile.slint";
@@ -70,6 +70,14 @@ export component MainWindow inherits MaterialWindow {
     min-width: 600px;
     min-height: 440px;
     background: MaterialPalette.surface-container-lowest;
+
+    private property <string> snackbar-message <=> MainAdapter.error-message;
+
+    changed snackbar-message => {
+        if root.snackbar-message != "" {
+            error-snackbar.show();
+        }
+    }
 
     VerticalLayout {
         Rectangle {
@@ -258,43 +266,14 @@ export component MainWindow inherits MaterialWindow {
             }
         }
 
-        if MainAdapter.error-message != "": Rectangle {
-            height: 74px;
-            background: transparent;
+    }
 
-            HorizontalLayout {
-                padding-left: 16px;
-                padding-right: 16px;
-                padding-top: 8px;
-                padding-bottom: 10px;
-
-                Rectangle {
-                    border-radius: 16px;
-                    background: MaterialPalette.error-container;
-                    border-width: 1px;
-                    border-color: MaterialPalette.error;
-
-                    HorizontalLayout {
-                        padding-left: 16px;
-                        padding-right: 8px;
-                        spacing: 12px;
-
-                        MaterialText {
-                            text: MainAdapter.error-message;
-                            color: MaterialPalette.on-error-container;
-                            wrap: word-wrap;
-                            horizontal-stretch: 1;
-                        }
-
-                        TextButton {
-                            text: "Dismiss";
-                            clicked => {
-                                MainAdapter.dismiss-error();
-                            }
-                        }
-                    }
-                }
-            }
+    error-snackbar := SnackBar {
+        text: root.snackbar-message;
+        action-text: "Dismiss";
+        has-close-button: false;
+        action-clicked => {
+            MainAdapter.dismiss-error();
         }
     }
 }

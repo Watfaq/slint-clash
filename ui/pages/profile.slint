@@ -2,7 +2,7 @@
 // Profile page: config profile selection and management
 
 import { Typography, ElevatedCard, FilledButton, OutlineButton, TextButton, TextField,
-         MaterialText, MaterialPalette, HorizontalDivider, Icon, ScrollView } from "@material";
+         ListTile, MaterialText, MaterialPalette, HorizontalDivider, Icon, ScrollView } from "@material";
 import { MainAdapter } from "../components/main_adapter.slint";
 
 export { MainAdapter as ProfileViewAdapter }
@@ -263,47 +263,48 @@ export component ProfileView {
 
                     for profile[idx] in MainAdapter.profiles: VerticalLayout {
                         width: 100%;
-                        HorizontalLayout {
-                            spacing: 12px;
-                            padding-left: 4px;
-                            padding-right: 4px;
-                            padding-top: 12px;
-                            padding-bottom: 12px;
-                            alignment: center;
+                        ListTile {
                             width: 100%;
-
-                            Icon {
-                                source: profile.name == MainAdapter.active-profile ? @image-url("../icons/emblem-default.svg") : @image-url("../icons/folder.svg");
-                                width: 20px;
-                                height: 20px;
-                            }
-
-                            MaterialText {
-                                text: profile.name;
-                                style: Typography.body_medium;
-                            }
-
-                            Rectangle { horizontal-stretch: 1; }
-
-                            if profile.is-subscription: TextButton {
-                                text: "Update";
-                                enabled: !MainAdapter.core-busy;
-                                clicked => {
-                                    MainAdapter.update-profile(profile.name);
+                            text: profile.name;
+                            supporting-text: profile.is-subscription
+                                ? "Remote subscription"
+                                : "Local YAML profile";
+                            avatar-icon: profile.name == MainAdapter.active-profile
+                                ? @image-url("../icons/emblem-default.svg")
+                                : @image-url("../icons/folder.svg");
+                            avatar-background: profile.name == MainAdapter.active-profile
+                                ? MaterialPalette.primary_container
+                                : MaterialPalette.surface_container_highest;
+                            avatar-foreground: profile.name == MainAdapter.active-profile
+                                ? MaterialPalette.on_primary_container
+                                : MaterialPalette.on_surface_variant;
+                            enabled: !MainAdapter.core-busy;
+                            clicked => {
+                                if MainAdapter.active-profile != profile.name {
+                                    MainAdapter.select-profile(profile.name);
                                 }
                             }
 
-                            if MainAdapter.active-profile == profile.name: MaterialText {
-                                text: "Selected";
-                                style: Typography.label_medium;
-                                opacity: 0.6;
-                            }
+                            HorizontalLayout {
+                                spacing: 8px;
+                                if profile.is-subscription: TextButton {
+                                    text: "Update";
+                                    enabled: !MainAdapter.core-busy;
+                                    clicked => {
+                                        MainAdapter.update-profile(profile.name);
+                                    }
+                                }
 
-                            if MainAdapter.active-profile != profile.name: TextButton {
-                                text: "Select";
-                                enabled: !MainAdapter.core-busy;
-                                clicked => {
-                                    MainAdapter.select-profile(profile.name);
+                                if MainAdapter.active-profile == profile.name: MaterialText {
+                                    text: "Selected";
+                                    style: Typography.label_medium;
+                                    color: MaterialPalette.primary;
+                                }
+
+                                if MainAdapter.active-profile != profile.name: MaterialText {
+                                    text: "Select";
+                                    style: Typography.label_medium;
+                                    color: MaterialPalette.primary;
                                 }
                             }
                         }
