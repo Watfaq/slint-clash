@@ -1,11 +1,66 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Settings page with inline editing
 
-import { Typography, ElevatedCard, MaterialText, HorizontalDivider, ScrollView } from "@material";
+import { Typography, MaterialText, MaterialPalette, Icon, ScrollView } from "@material";
 import { MainAdapter } from "../components/main_adapter.slint";
 import { SettingItem } from "../components/setting_item.slint";
 
 export { MainAdapter as SettingsViewAdapter }
+
+component SettingsSection {
+    in property <image> icon;
+    in property <string> title;
+    in property <string> subtitle;
+
+    width: 100%;
+
+    Rectangle {
+        width: 100%;
+        border-radius: 18px;
+        background: MaterialPalette.surface-container-low;
+        border-width: 1px;
+        border-color: MaterialPalette.outline-variant;
+
+        VerticalLayout {
+            padding: 16px;
+            spacing: 12px;
+
+            HorizontalLayout {
+                spacing: 12px;
+
+                Rectangle {
+                    width: 40px;
+                    height: 40px;
+                    border-radius: 13px;
+                    background: MaterialPalette.primary-container;
+                    Icon {
+                        source: root.icon;
+                        width: 21px;
+                        height: 21px;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                        colorize: MaterialPalette.on-primary-container;
+                    }
+                }
+
+                VerticalLayout {
+                    spacing: 2px;
+                    alignment: center;
+                    MaterialText {
+                        text: root.title;
+                        style: Typography.title-medium;
+                    }
+                    MaterialText {
+                        text: root.subtitle;
+                        style: Typography.body-small;
+                        color: MaterialPalette.on-surface-variant;
+                    }
+                }
+            }
+
+            @children
+        }
+    }
+}
 
 export component SettingsView {
     width: 100%;
@@ -13,67 +68,85 @@ export component SettingsView {
 
     ScrollView {
         VerticalLayout {
-            padding: 16px;
-            spacing: 16px;
+            padding: 24px;
+            spacing: 20px;
             width: 100%;
 
-            MaterialText {
-                text: "Settings";
-                style: Typography.title_large;
-            }
-
-            ElevatedCard {
-                width: 100%;
-                VerticalLayout {
-                    spacing: 12px;
-                    padding: 20px;
-                    width: 100%;
-
-                    MaterialText {
-                        text: "Application";
-                        style: Typography.title_small;
-                    }
-
-                    HorizontalDivider { width: 100%; }
-
-                    SettingItem {
-                        idx: 0;
-                        label: "Mihomo Binary";
-                        value: MainAdapter.setting-binary-path == "" ? "Auto-detect" : MainAdapter.setting-binary-path;
-                    }
-
-                    SettingItem {
-                        idx: 1;
-                        label: "Config Directory";
-                        value: MainAdapter.setting-config-dir == "" ? "Default" : MainAdapter.setting-config-dir;
-                    }
+            VerticalLayout {
+                spacing: 4px;
+                MaterialText {
+                    text: "Settings";
+                    style: Typography.headline-small;
+                }
+                MaterialText {
+                    text: "Configure the Mihomo runtime and local control API.";
+                    style: Typography.body-medium;
+                    color: MaterialPalette.on-surface-variant;
                 }
             }
 
-            ElevatedCard {
-                width: 100%;
-                VerticalLayout {
-                    spacing: 12px;
-                    padding: 20px;
-                    width: 100%;
+            SettingsSection {
+                icon: @image-url("../icons/settings.svg");
+                title: "Application";
+                subtitle: "Runtime locations used when launching Mihomo.";
 
+                SettingItem {
+                    idx: 0;
+                    label: "Mihomo binary";
+                    description: "Executable used to start the core";
+                    value: MainAdapter.setting-binary-path == "" ? "Auto-detect" : MainAdapter.setting-binary-path;
+                }
+
+                SettingItem {
+                    idx: 1;
+                    label: "Config directory";
+                    description: "Profiles and application metadata";
+                    value: MainAdapter.setting-config-dir == "" ? "Default" : MainAdapter.setting-config-dir;
+                }
+            }
+
+            SettingsSection {
+                icon: @image-url("../icons/network-wireless.svg");
+                title: "Control API";
+                subtitle: "Local endpoint used by Slint Clash to manage Mihomo.";
+
+                SettingItem {
+                    idx: 2;
+                    label: "API port";
+                    description: "Local HTTP controller port";
+                    value: MainAdapter.setting-api-port-text;
+                }
+
+                SettingItem {
+                    idx: 3;
+                    label: "API secret";
+                    description: "Bearer token for controller requests";
+                    value: MainAdapter.setting-api-secret == "" ? "Not configured" : "••••••••";
+                }
+            }
+
+            Rectangle {
+                height: 54px;
+                border-radius: 16px;
+                background: MaterialPalette.surface-container-low;
+                border-width: 1px;
+                border-color: MaterialPalette.outline-variant;
+
+                HorizontalLayout {
+                    padding-left: 16px;
+                    padding-right: 16px;
+                    spacing: 10px;
+                    alignment: center;
+                    Icon {
+                        source: @image-url("../icons/emblem-default.svg");
+                        width: 18px;
+                        height: 18px;
+                        colorize: MaterialPalette.on-surface-variant;
+                    }
                     MaterialText {
-                        text: "API";
-                        style: Typography.title_small;
-                    }
-
-                    HorizontalDivider { width: 100%; }
-
-                    SettingItem {
-                        idx: 2;
-                        label: "API Port";
-                        value: MainAdapter.setting-api-port-text;
-                    }
-
-                    SettingItem {
-                        idx: 3;
-                        label: "API Secret";
-                        value: MainAdapter.setting-api-secret == "" ? "None" : "••••••••";
+                        text: "Settings are stored locally and applied on the next core start.";
+                        style: Typography.body-small;
+                        color: MaterialPalette.on-surface-variant;
                     }
                 }
             }

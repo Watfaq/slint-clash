@@ -1,255 +1,405 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Home page: Mihomo core status and traffic statistics.
 
-import { Typography, ElevatedCard, FilledCard, FilledButton, OutlineButton, SegmentedButton,
-         MaterialText, HorizontalDivider, Icon, ScrollView } from "@material";
+import { Typography, ElevatedCard, FilledCard, FilledButton, OutlineButton,
+         SegmentedButton, MaterialText, MaterialPalette, Icon, ScrollView } from "@material";
 import { MainAdapter } from "../components/main_adapter.slint";
 
 export { MainAdapter as HomeViewAdapter }
+
+component PageTitle {
+    in property <string> title;
+    in property <string> subtitle;
+
+    VerticalLayout {
+        spacing: 4px;
+        MaterialText {
+            text: root.title;
+            style: Typography.headline-small;
+        }
+        MaterialText {
+            text: root.subtitle;
+            style: Typography.body-medium;
+            color: MaterialPalette.on-surface-variant;
+        }
+    }
+}
+
+component InfoTile {
+    in property <image> icon;
+    in property <string> label;
+    in property <string> value;
+    in property <int> page;
+
+    min-width: 150px;
+    min-height: 116px;
+
+    Rectangle {
+        width: 100%;
+        height: 100%;
+        border-radius: 16px;
+        background: tile-touch.has-hover
+            ? MaterialPalette.surface-container-high
+            : MaterialPalette.surface-container-highest;
+        border-width: 1px;
+        border-color: tile-touch.has-hover
+            ? MaterialPalette.primary
+            : transparent;
+
+        animate background { duration: 140ms; }
+        animate border-color { duration: 140ms; }
+
+        VerticalLayout {
+            padding: 16px;
+            spacing: 9px;
+
+            Icon {
+                source: root.icon;
+                width: 20px;
+                height: 20px;
+                colorize: MaterialPalette.primary;
+            }
+            MaterialText {
+                text: root.label;
+                style: Typography.label-medium;
+                color: MaterialPalette.on-surface-variant;
+            }
+            MaterialText {
+                text: root.value;
+                style: Typography.title-small;
+                overflow: elide;
+            }
+        }
+
+        tile-touch := TouchArea {
+            mouse-cursor: pointer;
+            clicked => {
+                MainAdapter.current-page = root.page;
+            }
+        }
+    }
+}
 
 export component HomeView {
     width: 100%;
     height: 100%;
 
     ScrollView {
-        // Off state
-        if !MainAdapter.core-running: VerticalLayout {
-            alignment: center;
+        VerticalLayout {
+            padding: 24px;
             spacing: 20px;
-            padding-left: 32px;
-            padding-right: 32px;
-            padding-top: 36px;
-            padding-bottom: 36px;
-
-            Rectangle {
-                width: 88px;
-                height: 88px;
-                border-radius: 44px;
-                background: #303238;
-                HorizontalLayout {
-                    alignment: center;
-                    Icon {
-                        source: @image-url("../icons/network-wireless-disabled.svg");
-                        width: 56px;
-                        height: 56px;
-                    }
-                }
-            }
-
-            MaterialText {
-                text: MainAdapter.core-busy ? "Starting Mihomo…" : "Mihomo core is stopped";
-                style: Typography.headline_small;
-                horizontal-alignment: center;
-            }
-
-            MaterialText {
-                text: MainAdapter.core-busy
-                    ? "Waiting for the local control API to become ready."
-                    : "Start the core before selecting proxies or monitoring traffic.";
-                style: Typography.body_medium;
-                horizontal-alignment: center;
-                opacity: 0.6;
-            }
-
-            HorizontalLayout {
-                alignment: center;
-                FilledButton {
-                    width: 180px;
-                    text: MainAdapter.core-busy ? "Starting…" : "Start Core";
-                    enabled: !MainAdapter.core-busy;
-                    clicked => {
-                        MainAdapter.toggle-core();
-                    }
-                }
-            }
-        }
-
-        // On state
-        if MainAdapter.core-running: VerticalLayout {
-            padding: 16px;
-            spacing: 16px;
             width: 100%;
 
-            // Core status card
-            ElevatedCard {
+            PageTitle {
+                title: MainAdapter.core-running ? "Overview" : "Welcome back";
+                subtitle: MainAdapter.core-running
+                    ? "Monitor Mihomo and control your current routing session."
+                    : "Everything you need to start a private, reliable connection.";
+            }
+
+            if !MainAdapter.core-running: Rectangle {
                 width: 100%;
-                VerticalLayout {
-                    spacing: 16px;
-                    padding: 20px;
-                    width: 100%;
+                min-height: 272px;
+                border-radius: 24px;
+                background: MaterialPalette.surface-container-low;
+                border-width: 1px;
+                border-color: MaterialPalette.outline-variant;
 
-                    HorizontalLayout {
-                        spacing: 12px;
-                        alignment: center;
+                HorizontalLayout {
+                    padding-left: 32px;
+                    padding-right: 32px;
+                    padding-top: 28px;
+                    padding-bottom: 28px;
+                    spacing: 28px;
 
-                        Icon {
-                            source: @image-url("../icons/network-wireless.svg");
-                            width: 28px;
-                            height: 28px;
-                        }
+                    VerticalLayout {
+                        width: root.width >= 650px ? parent.width - 242px : parent.width;
+                        spacing: 14px;
+                        alignment: start;
 
-                        MaterialText {
-                            text: "Mihomo Core";
-                            style: Typography.title_medium;
-                        }
-
-                        Rectangle { horizontal-stretch: 1; }
-
-                        // Pulsing status dot
                         Rectangle {
-                            width: 10px;
-                            height: 10px;
-                            border-radius: 5px;
-                            background: #4caf50;
-                        }
-                        MaterialText {
-                            text: MainAdapter.core-busy ? "Stopping…" : "Running";
-                            style: Typography.body_medium;
-                            opacity: 0.7;
-                        }
-                    }
+                            height: 26px;
+                            border-radius: 13px;
+                            background: MaterialPalette.primary-container;
+                            min-width: state-label.min-width + 22px;
 
-                    HorizontalDivider { width: 100%; }
-
-                    if MainAdapter.clash-version != "": HorizontalLayout {
-                        spacing: 8px;
-                        width: 100%;
-                        MaterialText {
-                            text: "Clash Version";
-                            style: Typography.label_medium;
-                            opacity: 0.6;
+                            state-label := MaterialText {
+                                x: 11px;
+                                text: "CORE CONTROL";
+                                style: Typography.label-small;
+                                color: MaterialPalette.on-primary-container;
+                            }
                         }
-                        Rectangle { horizontal-stretch: 1; }
-                        MaterialText {
-                            text: MainAdapter.clash-version;
-                            style: Typography.body_medium;
-                        }
-                    }
 
-                    HorizontalLayout {
-                        Rectangle { horizontal-stretch: 1; }
-                        OutlineButton {
-                            text: MainAdapter.core-busy ? "Stopping…" : "Stop Core";
+                        MaterialText {
+                            text: MainAdapter.core-busy
+                                ? "Starting Mihomo…"
+                                : "Ready when you are";
+                            style: Typography.headline-medium;
+                        }
+
+                        MaterialText {
+                            text: MainAdapter.core-busy
+                                ? "Waiting for the local control API to become ready."
+                                : "Start the core to unlock proxy selection, routing modes, and live traffic.";
+                            style: Typography.body-medium;
+                            color: MaterialPalette.on-surface-variant;
+                            wrap: word-wrap;
+                            max-width: 430px;
+                        }
+
+                        FilledButton {
+                            width: 160px;
+                            height: 44px;
+                            text: MainAdapter.core-busy ? "Starting…" : "Start Core";
                             enabled: !MainAdapter.core-busy;
-                            horizontal-stretch: 0;
                             clicked => {
                                 MainAdapter.toggle-core();
                             }
                         }
                     }
 
-                    MaterialText {
-                        text: MainAdapter.status-message;
-                        style: Typography.body_small;
-                        opacity: 0.6;
-                    }
-                }
-            }
+                    if root.width >= 650px: VerticalLayout {
+                        width: 150px;
+                        alignment: center;
 
-            ElevatedCard {
-                width: 100%;
-                VerticalLayout {
-                    spacing: 14px;
-                    padding: 20px;
+                        Rectangle {
+                            width: 150px;
+                            height: 150px;
+                            border-radius: 75px;
+                            background: MaterialPalette.primary-container;
 
-                    MaterialText {
-                        text: "Proxy Mode";
-                        style: Typography.title_medium;
-                    }
+                            Rectangle {
+                                width: 112px;
+                                height: 112px;
+                                x: 19px;
+                                y: 19px;
+                                border-radius: 56px;
+                                background: MaterialPalette.surface-container-high;
 
-                    SegmentedButton {
-                        items: [
-                            { text: "Rule" },
-                            { text: "Global" },
-                            { text: "Direct" },
-                        ];
-                        current-index: MainAdapter.clash-mode-index;
-                        enabled: !MainAdapter.core-busy;
-                        index-changed(index) => {
-                            MainAdapter.set-clash-mode(index);
-                        }
-                    }
-                }
-            }
-
-            // Traffic statistics card
-            ElevatedCard {
-                width: 100%;
-                VerticalLayout {
-                    spacing: 16px;
-                    padding: 20px;
-                    width: 100%;
-
-                    HorizontalLayout {
-                        spacing: 8px;
-                        Icon {
-                            source: @image-url("../icons/utilities-system-monitor.svg");
-                            width: 20px;
-                            height: 20px;
-                        }
-                        MaterialText {
-                            text: "Statistics";
-                            style: Typography.title_medium;
-                        }
-                        Rectangle { horizontal-stretch: 1; }
-                    }
-
-                    HorizontalLayout {
-                        spacing: 16px;
-                        width: 100%;
-
-                        FilledCard {
-                            width: 100%;
-                            VerticalLayout {
-                                spacing: 8px;
-                                padding: 16px;
-
-                                HorizontalLayout {
-                                    spacing: 6px;
-                                    Icon {
-                                        source: @image-url("../icons/go-up.svg");
-                                        width: 16px;
-                                        height: 16px;
-                                    }
-                                    MaterialText {
-                                        text: "Upload";
-                                        style: Typography.label_medium;
-                                        opacity: 0.6;
-                                    }
-                                }
-                                MaterialText {
-                                    text: MainAdapter.traffic-upload;
-                                    style: Typography.title_medium;
-                                    color: MainAdapter.traffic-pulse ? #a5d6a7 : #81c784;
-                                    animate color { duration: 300ms; easing: ease-in-out; }
+                                Icon {
+                                    source: @image-url("../icons/network-wireless-disabled.svg");
+                                    width: 58px;
+                                    height: 58px;
+                                    x: (parent.width - self.width) / 2;
+                                    y: (parent.height - self.height) / 2;
+                                    colorize: MaterialPalette.primary;
                                 }
                             }
                         }
+                    }
+                }
+            }
 
-                        FilledCard {
-                            width: 100%;
-                            VerticalLayout {
-                                spacing: 8px;
-                                padding: 16px;
+            if !MainAdapter.core-running && root.width >= 650px: HorizontalLayout {
+                spacing: 14px;
+                width: 100%;
 
-                                HorizontalLayout {
-                                    spacing: 6px;
-                                    Icon {
-                                        source: @image-url("../icons/go-down.svg");
-                                        width: 16px;
-                                        height: 16px;
+                InfoTile {
+                    width: (parent.width - 28px) / 3;
+                    height: 116px;
+                    icon: @image-url("../icons/profile.svg");
+                    label: "ACTIVE PROFILE";
+                    value: MainAdapter.active-profile == "" ? "Not selected" : MainAdapter.active-profile;
+                    page: 2;
+                }
+                InfoTile {
+                    width: (parent.width - 28px) / 3;
+                    height: 116px;
+                    icon: @image-url("../icons/proxy.svg");
+                    label: "PROXY GROUPS";
+                    value: "Start core to load";
+                    page: 1;
+                }
+                InfoTile {
+                    width: (parent.width - 28px) / 3;
+                    height: 116px;
+                    icon: @image-url("../icons/settings.svg");
+                    label: "CONTROL API";
+                    value: MainAdapter.setting-api-port-text;
+                    page: 3;
+                }
+            }
+
+            if !MainAdapter.core-running && root.width < 650px: VerticalLayout {
+                spacing: 10px;
+                width: 100%;
+
+                InfoTile {
+                    width: 100%;
+                    height: 100px;
+                    icon: @image-url("../icons/profile.svg");
+                    label: "ACTIVE PROFILE";
+                    value: MainAdapter.active-profile == "" ? "Not selected" : MainAdapter.active-profile;
+                    page: 2;
+                }
+                InfoTile {
+                    width: 100%;
+                    height: 100px;
+                    icon: @image-url("../icons/proxy.svg");
+                    label: "PROXY GROUPS";
+                    value: "Start core to load";
+                    page: 1;
+                }
+                InfoTile {
+                    width: 100%;
+                    height: 100px;
+                    icon: @image-url("../icons/settings.svg");
+                    label: "CONTROL API";
+                    value: MainAdapter.setting-api-port-text;
+                    page: 3;
+                }
+            }
+
+            if MainAdapter.core-running: Rectangle {
+                width: 100%;
+                height: 112px;
+                border-radius: 22px;
+                background: #15352a;
+                border-width: 1px;
+                border-color: #2d6650;
+
+                HorizontalLayout {
+                    padding: 22px;
+                    spacing: 16px;
+                    alignment: center;
+
+                    Rectangle {
+                        width: 56px;
+                        height: 56px;
+                        border-radius: 18px;
+                        background: #24513f;
+                        Icon {
+                            source: @image-url("../icons/network-wireless.svg");
+                            width: 30px;
+                            height: 30px;
+                            x: (parent.width - self.width) / 2;
+                            y: (parent.height - self.height) / 2;
+                            colorize: #b8f5cf;
+                        }
+                    }
+
+                    VerticalLayout {
+                        spacing: 4px;
+                        alignment: center;
+                        horizontal-stretch: 1;
+                        MaterialText {
+                            text: "Mihomo is running";
+                            style: Typography.title-large;
+                            color: #d5ffe5;
+                        }
+                        MaterialText {
+                            text: MainAdapter.status-message;
+                            style: Typography.body-medium;
+                            color: #a9d8bb;
+                        }
+                    }
+
+                    if MainAdapter.clash-version != "": Rectangle {
+                        height: 30px;
+                        border-radius: 15px;
+                        background: #24513f;
+                        min-width: version-label.min-width + 22px;
+                        version-label := MaterialText {
+                            x: 11px;
+                            text: "v" + MainAdapter.clash-version;
+                            style: Typography.label-medium;
+                            color: #b8f5cf;
+                        }
+                    }
+
+                    OutlineButton {
+                        text: MainAdapter.core-busy ? "Stopping…" : "Stop Core";
+                        enabled: !MainAdapter.core-busy;
+                        clicked => {
+                            MainAdapter.toggle-core();
+                        }
+                    }
+                }
+            }
+
+            if MainAdapter.core-running: HorizontalLayout {
+                spacing: 16px;
+                width: 100%;
+                alignment: start;
+
+                ElevatedCard {
+                    width: 46%;
+                    VerticalLayout {
+                        padding: 20px;
+                        spacing: 16px;
+
+                        MaterialText {
+                            text: "Routing mode";
+                            style: Typography.title-medium;
+                        }
+                        MaterialText {
+                            text: "Choose how Mihomo handles outgoing connections.";
+                            style: Typography.body-small;
+                            color: MaterialPalette.on-surface-variant;
+                            wrap: word-wrap;
+                        }
+                        SegmentedButton {
+                            items: [
+                                { text: "Rule" },
+                                { text: "Global" },
+                                { text: "Direct" },
+                            ];
+                            current-index: MainAdapter.clash-mode-index;
+                            enabled: !MainAdapter.core-busy;
+                            index-changed(index) => {
+                                MainAdapter.set-clash-mode(index);
+                            }
+                        }
+                    }
+                }
+
+                ElevatedCard {
+                    width: 54%;
+                    VerticalLayout {
+                        padding: 20px;
+                        spacing: 16px;
+
+                        MaterialText {
+                            text: "Live traffic";
+                            style: Typography.title-medium;
+                        }
+
+                        HorizontalLayout {
+                            spacing: 12px;
+                            FilledCard {
+                                width: 100%;
+                                VerticalLayout {
+                                    padding: 14px;
+                                    spacing: 7px;
+                                    MaterialText {
+                                        text: "UPLOAD";
+                                        style: Typography.label-small;
+                                        color: MaterialPalette.on-surface-variant;
                                     }
                                     MaterialText {
-                                        text: "Download";
-                                        style: Typography.label_medium;
-                                        opacity: 0.6;
+                                        text: MainAdapter.traffic-upload;
+                                        style: Typography.title-medium;
+                                        color: MainAdapter.traffic-pulse ? #a5d6a7 : #81c784;
+                                        animate color { duration: 300ms; }
                                     }
                                 }
-                                MaterialText {
-                                    text: MainAdapter.traffic-download;
-                                    style: Typography.title_medium;
-                                    color: MainAdapter.traffic-pulse ? #81d4fa : #4fc3f7;
-                                    animate color { duration: 300ms; easing: ease-in-out; }
+                            }
+                            FilledCard {
+                                width: 100%;
+                                VerticalLayout {
+                                    padding: 14px;
+                                    spacing: 7px;
+                                    MaterialText {
+                                        text: "DOWNLOAD";
+                                        style: Typography.label-small;
+                                        color: MaterialPalette.on-surface-variant;
+                                    }
+                                    MaterialText {
+                                        text: MainAdapter.traffic-download;
+                                        style: Typography.title-medium;
+                                        color: MainAdapter.traffic-pulse ? #81d4fa : #4fc3f7;
+                                        animate color { duration: 300ms; }
+                                    }
                                 }
                             }
                         }

@@ -2,7 +2,7 @@
 // Profile page: config profile selection and management
 
 import { Typography, ElevatedCard, FilledButton, OutlineButton, TextButton, TextField,
-         MaterialText, HorizontalDivider, Icon, ScrollView } from "@material";
+         MaterialText, MaterialPalette, HorizontalDivider, Icon, ScrollView } from "@material";
 import { MainAdapter } from "../components/main_adapter.slint";
 
 export { MainAdapter as ProfileViewAdapter }
@@ -44,13 +44,21 @@ export component ProfileView {
             width: 100%;
 
             if root.width >= 560px: HorizontalLayout {
-                height: 48px;
+                height: 56px;
                 spacing: 12px;
-                alignment: center;
                 width: 100%;
-                MaterialText {
-                    text: "Profiles";
-                    style: Typography.title_large;
+                VerticalLayout {
+                    spacing: 4px;
+                    alignment: center;
+                    MaterialText {
+                        text: "Profiles";
+                        style: Typography.headline_small;
+                    }
+                    MaterialText {
+                        text: "Manage local configurations and remote subscriptions.";
+                        style: Typography.body_medium;
+                        color: MaterialPalette.on_surface_variant;
+                    }
                 }
                 Rectangle { horizontal-stretch: 1; }
                 ProfileActions {
@@ -64,7 +72,12 @@ export component ProfileView {
                 spacing: 8px;
                 MaterialText {
                     text: "Profiles";
-                    style: Typography.title_large;
+                    style: Typography.headline_small;
+                }
+                MaterialText {
+                    text: "Manage local configurations and remote subscriptions.";
+                    style: Typography.body_medium;
+                    color: MaterialPalette.on_surface_variant;
                 }
                 ProfileActions {
                     add-subscription => {
@@ -81,7 +94,13 @@ export component ProfileView {
 
                     MaterialText {
                         text: "Import Subscription";
-                        style: Typography.title_medium;
+                        style: Typography.title_large;
+                    }
+                    MaterialText {
+                        text: "Add a remote YAML profile. Existing subscriptions can be updated later.";
+                        style: Typography.body_small;
+                        color: MaterialPalette.on_surface_variant;
+                        wrap: word-wrap;
                     }
 
                     TextField {
@@ -118,8 +137,14 @@ export component ProfileView {
                 }
             }
 
-            ElevatedCard {
+            Rectangle {
                 width: 100%;
+                min-height: 100px;
+                border-radius: 18px;
+                background: MaterialPalette.primary_container;
+                border-width: 1px;
+                border-color: MaterialPalette.primary;
+
                 VerticalLayout {
                     spacing: 12px;
                     padding: 20px;
@@ -127,18 +152,19 @@ export component ProfileView {
 
                     HorizontalLayout {
                         spacing: 16px;
-                        alignment: start;
-                        width: 100%;
 
                         Rectangle {
                             width: 48px;
                             height: 48px;
-                            border-radius: 24px;
-                            background: #303238;
+                            border-radius: 16px;
+                            background: MaterialPalette.primary;
                             Icon {
                                 source: @image-url("../icons/emblem-default.svg");
                                 width: 28px;
                                 height: 28px;
+                                x: (parent.width - self.width) / 2;
+                                y: (parent.height - self.height) / 2;
+                                colorize: MaterialPalette.on_primary;
                             }
                         }
 
@@ -147,40 +173,67 @@ export component ProfileView {
                             MaterialText {
                                 text: "Active Profile";
                                 style: Typography.label_medium;
-                                opacity: 0.6;
+                                color: MaterialPalette.on_primary_container;
                             }
                             MaterialText {
                                 text: MainAdapter.active-profile == "" ? "None" : MainAdapter.active-profile;
-                                style: Typography.title_medium;
+                                style: Typography.title_large;
+                                color: MaterialPalette.on_primary_container;
+                            }
+                            MaterialText {
+                                text: MainAdapter.active-profile == ""
+                                    ? "Choose a profile below to continue"
+                                    : "Currently used by Mihomo";
+                                style: Typography.label_small;
+                                color: MaterialPalette.on_primary_container;
+                                opacity: 0.72;
                             }
                         }
                     }
                 }
             }
 
-            if !MainAdapter.profiles-loaded || MainAdapter.profiles.length == 0: ElevatedCard {
+            if !MainAdapter.profiles-loaded || MainAdapter.profiles.length == 0: Rectangle {
                 width: 100%;
+                min-height: 240px;
+                border-radius: 20px;
+                background: MaterialPalette.surface_container_low;
+                border-width: 1px;
+                border-color: MaterialPalette.outline_variant;
+
                 VerticalLayout {
                     alignment: center;
                     spacing: 12px;
                     padding: 32px;
                     width: 100%;
 
-                    Icon {
-                        source: @image-url("../icons/folder.svg");
-                        width: 48px;
-                        height: 48px;
+                    HorizontalLayout {
+                        alignment: center;
+                        Rectangle {
+                            width: 72px;
+                            height: 72px;
+                            border-radius: 24px;
+                            background: MaterialPalette.surface_container_highest;
+                            Icon {
+                                source: @image-url("../icons/folder.svg");
+                                width: 36px;
+                                height: 36px;
+                                x: (parent.width - self.width) / 2;
+                                y: (parent.height - self.height) / 2;
+                                colorize: MaterialPalette.primary;
+                            }
+                        }
                     }
                     MaterialText {
                         text: "No profiles found";
-                        style: Typography.title_small;
+                        style: Typography.title_large;
                         horizontal-alignment: center;
                     }
                     MaterialText {
-                        text: "Add YAML configuration files to your config directory.";
+                        text: "Import a subscription or add YAML files to the config directory.";
                         style: Typography.body_medium;
                         horizontal-alignment: center;
-                        opacity: 0.6;
+                        color: MaterialPalette.on_surface_variant;
                     }
                 }
             }

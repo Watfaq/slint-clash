@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { Typography, ElevatedCard, FilledCard, OutlineButton, TextButton,
-         MaterialText, HorizontalDivider, Icon, ScrollView } from "@material";
+import { Typography, FilledCard, OutlineButton, TextButton, MaterialText,
+         MaterialPalette, Icon, ScrollView } from "@material";
 import { MainAdapter } from "../components/main_adapter.slint";
 
 export { MainAdapter as ProxiesViewAdapter }
@@ -9,25 +9,78 @@ export { MainAdapter as ProxiesViewAdapter }
 component ProxyGroupList {
     width: 100%;
 
-    ElevatedCard {
+    Rectangle {
         width: 100%;
+        border-radius: 18px;
+        background: MaterialPalette.surface-container-low;
+        border-width: 1px;
+        border-color: MaterialPalette.outline-variant;
+
         VerticalLayout {
             padding: 12px;
-            spacing: 4px;
+            spacing: 6px;
 
             MaterialText {
-                text: "Groups";
-                style: Typography.title_small;
+                text: "PROXY GROUPS";
+                style: Typography.label-small;
+                color: MaterialPalette.on-surface-variant;
             }
-            HorizontalDivider { width: 100%; }
 
-            for group in MainAdapter.proxy-groups: TextButton {
-                width: 100%;
-                text: (group.name == MainAdapter.active-proxy-group ? "✓ " : "")
-                    + group.name + " (" + group.count + ")";
-                enabled: !MainAdapter.core-busy;
-                clicked => {
-                    MainAdapter.select-proxy-group(group.name);
+            for group in MainAdapter.proxy-groups: Rectangle {
+                height: 48px;
+                border-radius: 13px;
+                background: group.name == MainAdapter.active-proxy-group
+                    ? MaterialPalette.primary-container
+                    : group-touch.has-hover
+                        ? MaterialPalette.surface-container-high
+                        : transparent;
+
+                HorizontalLayout {
+                    padding-left: 12px;
+                    padding-right: 10px;
+                    spacing: 9px;
+
+                    if group.name == MainAdapter.active-proxy-group: Rectangle {
+                        width: 3px;
+                        height: 22px;
+                        border-radius: 2px;
+                        background: MaterialPalette.primary;
+                    }
+                    VerticalLayout {
+                        spacing: 1px;
+                        alignment: center;
+                        horizontal-stretch: 1;
+                        MaterialText {
+                            text: group.name;
+                            style: Typography.label-large;
+                            overflow: elide;
+                        }
+                        MaterialText {
+                            text: group.kind;
+                            style: Typography.label-small;
+                            color: MaterialPalette.on-surface-variant;
+                        }
+                    }
+                    Rectangle {
+                        width: 28px;
+                        height: 24px;
+                        border-radius: 12px;
+                        background: MaterialPalette.surface-container-highest;
+                        MaterialText {
+                            text: group.count;
+                            style: Typography.label-small;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                group-touch := TouchArea {
+                    enabled: !MainAdapter.core-busy;
+                    mouse-cursor: pointer;
+                    clicked => {
+                        MainAdapter.select-proxy-group(group.name);
+                    }
                 }
             }
         }
@@ -38,39 +91,84 @@ component ProxyNodeList {
     width: 100%;
 
     VerticalLayout {
-        spacing: 10px;
+        spacing: 12px;
 
-        MaterialText {
-            text: MainAdapter.active-proxy-group;
-            style: Typography.title_medium;
+        HorizontalLayout {
+            MaterialText {
+                text: MainAdapter.active-proxy-group;
+                style: Typography.title-large;
+            }
+            Rectangle { horizontal-stretch: 1; }
+            MaterialText {
+                text: MainAdapter.proxy-nodes.length + " nodes";
+                style: Typography.label-medium;
+                color: MaterialPalette.on-surface-variant;
+            }
         }
 
-        for node in MainAdapter.proxy-nodes: FilledCard {
+        for node in MainAdapter.proxy-nodes: Rectangle {
             width: 100%;
-            HorizontalLayout {
-                padding: 14px;
+            height: root.width >= 500px ? 76px : 120px;
+            border-radius: 16px;
+            background: node.selected
+                ? MaterialPalette.primary-container
+                : MaterialPalette.surface-container-low;
+            border-width: 1px;
+            border-color: node.selected
+                ? MaterialPalette.primary
+                : MaterialPalette.outline-variant;
+
+            if root.width >= 500px: HorizontalLayout {
+                padding-left: 16px;
+                padding-right: 12px;
                 spacing: 12px;
-                alignment: center;
+
+                Rectangle {
+                    width: 38px;
+                    height: 38px;
+                    border-radius: 12px;
+                    background: node.selected
+                        ? MaterialPalette.primary
+                        : MaterialPalette.surface-container-highest;
+                    Icon {
+                        source: @image-url("../icons/proxy.svg");
+                        width: 20px;
+                        height: 20px;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                        colorize: node.selected
+                            ? MaterialPalette.on-primary
+                            : MaterialPalette.on-surface-variant;
+                    }
+                }
 
                 VerticalLayout {
                     spacing: 3px;
                     horizontal-stretch: 1;
+                    alignment: center;
                     MaterialText {
                         text: node.name;
-                        style: Typography.body_large;
+                        style: Typography.body-large;
                         overflow: elide;
                     }
                     MaterialText {
-                        text: node.kind == "" ? "Proxy" : node.kind;
-                        style: Typography.label_small;
-                        opacity: 0.55;
+                        text: node.kind == "" ? "Proxy node" : node.kind;
+                        style: Typography.label-small;
+                        color: MaterialPalette.on-surface-variant;
                     }
                 }
 
-                MaterialText {
-                    text: node.delay;
-                    style: Typography.label_medium;
-                    color: node.alive ? #81c784 : #ef9a9a;
+                Rectangle {
+                    height: 28px;
+                    border-radius: 14px;
+                    background: node.alive ? #173b2b : #3f2528;
+                    min-width: delay-label.min-width + 20px;
+                    delay-label := MaterialText {
+                        x: 10px;
+                        text: node.delay;
+                        style: Typography.label-medium;
+                        color: node.alive ? #b8f5cf : #ffc1c5;
+                    }
                 }
 
                 TextButton {
@@ -86,8 +184,8 @@ component ProxyNodeList {
 
                 if node.selected: MaterialText {
                     text: "Selected";
-                    style: Typography.label_medium;
-                    color: #8ab4f8;
+                    style: Typography.label-medium;
+                    color: MaterialPalette.primary;
                 }
 
                 if !node.selected: OutlineButton {
@@ -101,6 +199,95 @@ component ProxyNodeList {
                     }
                 }
             }
+
+            if root.width < 500px: VerticalLayout {
+                padding-left: 14px;
+                padding-right: 10px;
+                padding-top: 12px;
+                padding-bottom: 10px;
+                spacing: 6px;
+
+                HorizontalLayout {
+                    spacing: 10px;
+
+                    Rectangle {
+                        width: 36px;
+                        height: 36px;
+                        border-radius: 11px;
+                        background: node.selected
+                            ? MaterialPalette.primary
+                            : MaterialPalette.surface-container-highest;
+                        Icon {
+                            source: @image-url("../icons/proxy.svg");
+                            width: 19px;
+                            height: 19px;
+                            x: (parent.width - self.width) / 2;
+                            y: (parent.height - self.height) / 2;
+                            colorize: node.selected
+                                ? MaterialPalette.on-primary
+                                : MaterialPalette.on-surface-variant;
+                        }
+                    }
+
+                    VerticalLayout {
+                        spacing: 2px;
+                        horizontal-stretch: 1;
+                        MaterialText {
+                            text: node.name;
+                            style: Typography.body-large;
+                            overflow: elide;
+                        }
+                        MaterialText {
+                            text: node.kind == "" ? "Proxy node" : node.kind;
+                            style: Typography.label-small;
+                            color: MaterialPalette.on-surface-variant;
+                        }
+                    }
+
+                    Rectangle {
+                        height: 28px;
+                        border-radius: 14px;
+                        background: node.alive ? #173b2b : #3f2528;
+                        min-width: compact-delay-label.min-width + 20px;
+                        compact-delay-label := MaterialText {
+                            x: 10px;
+                            text: node.delay;
+                            style: Typography.label-medium;
+                            color: node.alive ? #b8f5cf : #ffc1c5;
+                        }
+                    }
+                }
+
+                HorizontalLayout {
+                    spacing: 8px;
+                    Rectangle { horizontal-stretch: 1; }
+                    TextButton {
+                        text: "Test latency";
+                        enabled: !MainAdapter.core-busy;
+                        clicked => {
+                            MainAdapter.test-proxy-delay(
+                                MainAdapter.active-proxy-group,
+                                node.name
+                            );
+                        }
+                    }
+                    if node.selected: MaterialText {
+                        text: "Selected";
+                        style: Typography.label-medium;
+                        color: MaterialPalette.primary;
+                    }
+                    if !node.selected: OutlineButton {
+                        text: "Select";
+                        enabled: !MainAdapter.core-busy;
+                        clicked => {
+                            MainAdapter.select-proxy(
+                                MainAdapter.active-proxy-group,
+                                node.name
+                            );
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -111,18 +298,26 @@ export component ProxiesView {
 
     ScrollView {
         VerticalLayout {
-            padding: 16px;
-            spacing: 16px;
+            padding: 24px;
+            spacing: 20px;
             width: 100%;
 
             HorizontalLayout {
-                height: 48px;
-                alignment: center;
-                MaterialText {
-                    text: "Proxies";
-                    style: Typography.title_large;
+                VerticalLayout {
+                    spacing: 4px;
+                    MaterialText {
+                        text: "Proxies";
+                        style: Typography.headline-small;
+                    }
+                    MaterialText {
+                        text: "Browse groups, select a route, and check node latency.";
+                        style: Typography.body-medium;
+                        color: MaterialPalette.on-surface-variant;
+                    }
                 }
+
                 Rectangle { horizontal-stretch: 1; }
+
                 OutlineButton {
                     height: 40px;
                     text: "Refresh";
@@ -133,63 +328,81 @@ export component ProxiesView {
                 }
             }
 
-            if !MainAdapter.core-running: ElevatedCard {
+            if !MainAdapter.core-running: Rectangle {
                 width: 100%;
+                min-height: 260px;
+                border-radius: 22px;
+                background: MaterialPalette.surface-container-low;
+                border-width: 1px;
+                border-color: MaterialPalette.outline-variant;
+
                 VerticalLayout {
                     alignment: center;
                     spacing: 12px;
                     padding: 32px;
 
-                    Icon {
-                        source: @image-url("../icons/network-wireless-disabled.svg");
-                        width: 44px;
-                        height: 44px;
+                    HorizontalLayout {
+                        alignment: center;
+                        Rectangle {
+                            width: 72px;
+                            height: 72px;
+                            border-radius: 24px;
+                            background: MaterialPalette.surface-container-highest;
+                            Icon {
+                                source: @image-url("../icons/network-wireless-disabled.svg");
+                                width: 36px;
+                                height: 36px;
+                                x: (parent.width - self.width) / 2;
+                                y: (parent.height - self.height) / 2;
+                                colorize: MaterialPalette.primary;
+                            }
+                        }
                     }
                     MaterialText {
-                        text: "Mihomo core is stopped";
-                        style: Typography.title_medium;
+                        width: 100%;
+                        text: "Proxy groups are offline";
+                        style: Typography.title-large;
+                        horizontal-alignment: center;
                     }
                     MaterialText {
-                        text: "Start the core to load proxy groups.";
-                        style: Typography.body_medium;
-                        opacity: 0.6;
+                        width: 100%;
+                        text: "Start Mihomo from Home to load groups and nodes.";
+                        style: Typography.body-medium;
+                        color: MaterialPalette.on-surface-variant;
+                        horizontal-alignment: center;
                     }
                 }
             }
 
-            if MainAdapter.core-running && MainAdapter.proxy-groups.length == 0: ElevatedCard {
+            if MainAdapter.core-running && MainAdapter.proxy-groups.length == 0: FilledCard {
                 width: 100%;
                 VerticalLayout {
                     alignment: center;
                     spacing: 10px;
-                    padding: 32px;
+                    padding: 36px;
                     MaterialText {
                         text: MainAdapter.core-busy ? "Loading proxy groups…" : "No proxy groups available";
-                        style: Typography.title_medium;
+                        style: Typography.title-medium;
                     }
                     MaterialText {
                         text: "Check the active profile and refresh this page.";
-                        style: Typography.body_medium;
-                        opacity: 0.6;
+                        style: Typography.body-medium;
+                        color: MaterialPalette.on-surface-variant;
                     }
                 }
             }
 
-            if MainAdapter.core-running && MainAdapter.proxy-groups.length > 0 && root.width >= 620px: HorizontalLayout {
-                spacing: 16px;
+            if MainAdapter.core-running && MainAdapter.proxy-groups.length > 0 && root.width >= 650px: HorizontalLayout {
+                spacing: 18px;
                 width: 100%;
                 alignment: start;
 
-                ProxyGroupList {
-                    width: 210px;
-                }
-                ProxyNodeList {
-                    horizontal-stretch: 1;
-                }
+                ProxyGroupList { width: 220px; }
+                ProxyNodeList { horizontal-stretch: 1; }
             }
 
-            if MainAdapter.core-running && MainAdapter.proxy-groups.length > 0 && root.width < 620px: VerticalLayout {
-                spacing: 16px;
+            if MainAdapter.core-running && MainAdapter.proxy-groups.length > 0 && root.width < 650px: VerticalLayout {
+                spacing: 18px;
                 width: 100%;
 
                 ProxyGroupList { width: 100%; }

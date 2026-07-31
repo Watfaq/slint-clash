@@ -1,44 +1,68 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Reusable settings entry with inline editing
 
-import { Typography, FilledButton, TextButton, MaterialText, TextField } from "@material";
+import { Typography, FilledButton, TextButton, MaterialText, MaterialPalette, TextField } from "@material";
 import { MainAdapter } from "./main_adapter.slint";
 
 export component SettingItem {
     in property <int> idx;
     in property <string> label;
     in property <string> value;
+    in property <string> description;
 
     width: 100%;
-    min-height: 48px;
+    min-height: 62px;
 
-    if !MainAdapter.show-edit-ui || MainAdapter.editing-field-index != root.idx: HorizontalLayout {
-        spacing: 12px;
-        padding-left: 4px;
-        padding-right: 4px;
-        padding-top: 8px;
-        padding-bottom: 8px;
-        alignment: center;
-        width: 100%;
+    if !MainAdapter.show-edit-ui || MainAdapter.editing-field-index != root.idx: Rectangle {
+        border-radius: 12px;
+        background: item-touch.has-hover ? MaterialPalette.surface-container-high : transparent;
 
-        VerticalLayout {
-            spacing: 2px;
+        HorizontalLayout {
+            spacing: 12px;
+            padding-left: 10px;
+            padding-right: 6px;
+            padding-top: 9px;
+            padding-bottom: 9px;
             width: 100%;
-            MaterialText {
-                text: root.label;
-                style: Typography.body_medium;
+
+            VerticalLayout {
+                spacing: 2px;
+                horizontal-stretch: 1;
+                MaterialText {
+                    text: root.label;
+                    style: Typography.body-large;
+                }
+                MaterialText {
+                    text: root.description;
+                    style: Typography.label-small;
+                    color: MaterialPalette.on-surface-variant;
+                }
             }
+
+            Rectangle {
+                max-width: 260px;
+                height: 30px;
+                border-radius: 10px;
+                background: MaterialPalette.surface-container-highest;
+                min-width: value-label.min-width + 18px;
+                value-label := MaterialText {
+                    x: 9px;
+                    text: root.value;
+                    style: Typography.label-medium;
+                    color: MaterialPalette.on-surface-variant;
+                    overflow: elide;
+                }
+            }
+
             MaterialText {
-                text: root.value;
-                style: Typography.label_small;
-                opacity: 0.6;
+                text: "Edit";
+                style: Typography.label-medium;
+                color: MaterialPalette.primary;
             }
         }
 
-        Rectangle { horizontal-stretch: 1; }
-
-        TextButton {
-            text: "Edit";
+        item-touch := TouchArea {
+            mouse-cursor: pointer;
             clicked => {
                 MainAdapter.start-edit(root.idx);
             }
@@ -47,11 +71,10 @@ export component SettingItem {
 
     if MainAdapter.show-edit-ui && MainAdapter.editing-field-index == root.idx: HorizontalLayout {
         spacing: 12px;
-        padding-left: 4px;
-        padding-right: 4px;
-        padding-top: 8px;
-        padding-bottom: 8px;
-        alignment: center;
+        padding-left: 10px;
+        padding-right: 6px;
+        padding-top: 9px;
+        padding-bottom: 9px;
         width: 100%;
 
         MaterialText {

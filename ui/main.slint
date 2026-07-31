@@ -1,34 +1,161 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Slint Material 3 main window with navigation rail
 
-import { MaterialWindow, NavigationRail, NavigationItem, AppBar, LinearProgressIndicator,
-         MaterialText, TextButton } from "@material";
-import { HomeView, HomeViewAdapter } from "./pages/home.slint";
-import { ProxiesView, ProxiesViewAdapter } from "./pages/proxies.slint";
-import { ProfileView, ProfileViewAdapter } from "./pages/profile.slint";
-import { SettingsView, SettingsViewAdapter } from "./pages/settings.slint";
+import { MaterialWindow, MaterialText, Typography, MaterialPalette, Icon,
+         LinearProgressIndicator, TextButton } from "@material";
+import { HomeView } from "./pages/home.slint";
+import { ProxiesView } from "./pages/proxies.slint";
+import { ProfileView } from "./pages/profile.slint";
+import { SettingsView } from "./pages/settings.slint";
 import { MainAdapter } from "./components/main_adapter.slint";
 
 export { MainAdapter }
 
+component NavigationEntry {
+    in property <image> icon;
+    in property <string> label;
+    in property <int> page;
+    property <bool> selected: MainAdapter.current-page == root.page;
+
+    width: 72px;
+    height: 64px;
+
+    Rectangle {
+        border-radius: 18px;
+        background: root.selected
+            ? MaterialPalette.primary-container
+            : touch.has-hover
+                ? MaterialPalette.surface-container-high
+                : transparent;
+
+        animate background { duration: 140ms; }
+
+        VerticalLayout {
+            padding-top: 9px;
+            padding-bottom: 8px;
+            spacing: 4px;
+            alignment: center;
+
+            Icon {
+                source: root.icon;
+                width: 22px;
+                height: 22px;
+                colorize: root.selected
+                    ? MaterialPalette.on-primary-container
+                    : MaterialPalette.on-surface-variant;
+            }
+
+            MaterialText {
+                text: root.label;
+                style: Typography.label-small;
+                color: root.selected
+                    ? MaterialPalette.on-primary-container
+                    : MaterialPalette.on-surface-variant;
+                horizontal-alignment: center;
+            }
+        }
+
+        touch := TouchArea {
+            mouse-cursor: pointer;
+            clicked => {
+                MainAdapter.current-page = root.page;
+            }
+        }
+    }
+}
+
 export component MainWindow inherits MaterialWindow {
     title: "Slint Clash";
-    preferred-width: 800px;
-    preferred-height: 560px;
-    min-width: 360px;
-    min-height: 360px;
-    background: MainAdapter.background;
-
-    in property <[NavigationItem]> nav-items: [
-        { icon: @image-url("icons/home.svg"), text: "Home" },
-        { icon: @image-url("icons/proxy.svg"), text: "Proxies" },
-        { icon: @image-url("icons/profile.svg"), text: "Profiles" },
-        { icon: @image-url("icons/settings.svg"), text: "Settings" },
-    ];
+    preferred-width: 920px;
+    preferred-height: 640px;
+    min-width: 600px;
+    min-height: 440px;
+    background: MaterialPalette.surface-container-lowest;
 
     VerticalLayout {
-        AppBar {
-            title: "Slint Clash";
+        Rectangle {
+            height: 68px;
+            background: MaterialPalette.surface-container-low;
+
+            HorizontalLayout {
+                padding-left: 22px;
+                padding-right: 22px;
+                spacing: 14px;
+
+                VerticalLayout {
+                    alignment: center;
+                    horizontal-stretch: 0;
+
+                    Rectangle {
+                        width: 38px;
+                        height: 38px;
+                        border-radius: 12px;
+                        background: MaterialPalette.primary-container;
+
+                        Icon {
+                            source: @image-url("icons/proxy.svg");
+                            width: 22px;
+                            height: 22px;
+                            x: (parent.width - self.width) / 2;
+                            y: (parent.height - self.height) / 2;
+                            colorize: MaterialPalette.on-primary-container;
+                        }
+                    }
+                }
+
+                VerticalLayout {
+                    spacing: 0px;
+                    alignment: center;
+                    horizontal-stretch: 0;
+
+                    MaterialText {
+                        text: "Slint Clash";
+                        style: Typography.title-medium;
+                    }
+                    MaterialText {
+                        text: "Mihomo desktop client";
+                        style: Typography.label-small;
+                        color: MaterialPalette.on-surface-variant;
+                    }
+                }
+
+                Rectangle { horizontal-stretch: 1; }
+
+                VerticalLayout {
+                    alignment: center;
+                    horizontal-stretch: 0;
+
+                    Rectangle {
+                        height: 34px;
+                        border-radius: 17px;
+                        background: MainAdapter.core-running
+                            ? #173b2b
+                            : MaterialPalette.surface-container-high;
+                        min-width: status-layout.min-width;
+
+                        status-layout := HorizontalLayout {
+                            padding-left: 13px;
+                            padding-right: 13px;
+                            spacing: 8px;
+
+                            Rectangle {
+                                width: 8px;
+                                height: 8px;
+                                border-radius: 4px;
+                                background: MainAdapter.core-running ? #59d98e : #8d9199;
+                            }
+                            MaterialText {
+                                text: MainAdapter.core-busy
+                                    ? "Working"
+                                    : MainAdapter.core-running ? "Core running" : "Core stopped";
+                                style: Typography.label-medium;
+                                color: MainAdapter.core-running
+                                    ? #b8f5cf
+                                    : MaterialPalette.on-surface-variant;
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         if MainAdapter.core-busy: LinearProgressIndicator {
@@ -37,15 +164,59 @@ export component MainWindow inherits MaterialWindow {
         }
 
         HorizontalLayout {
-            NavigationRail {
-                items: root.nav-items;
-                current-index <=> MainAdapter.current-page;
+            spacing: 0px;
+
+            Rectangle {
+                width: 96px;
+                background: MaterialPalette.surface-container-low;
+
+                VerticalLayout {
+                    padding-top: 20px;
+                    padding-bottom: 20px;
+                    spacing: 10px;
+                    alignment: start;
+
+                    HorizontalLayout {
+                        alignment: center;
+                        NavigationEntry {
+                            icon: @image-url("icons/home.svg");
+                            label: "Home";
+                            page: 0;
+                        }
+                    }
+                    HorizontalLayout {
+                        alignment: center;
+                        NavigationEntry {
+                            icon: @image-url("icons/proxy.svg");
+                            label: "Proxies";
+                            page: 1;
+                        }
+                    }
+                    HorizontalLayout {
+                        alignment: center;
+                        NavigationEntry {
+                            icon: @image-url("icons/profile.svg");
+                            label: "Profiles";
+                            page: 2;
+                        }
+                    }
+
+                    Rectangle { vertical-stretch: 1; }
+
+                    HorizontalLayout {
+                        alignment: center;
+                        NavigationEntry {
+                            icon: @image-url("icons/settings.svg");
+                            label: "Settings";
+                            page: 3;
+                        }
+                    }
+                }
             }
 
-            // Content fills remaining space — pages stacked with slide+fade transitions
             Rectangle {
                 horizontal-stretch: 1;
-                background: transparent;
+                background: MaterialPalette.surface-container-lowest;
                 clip: true;
 
                 home := HomeView {
@@ -54,8 +225,8 @@ export component MainWindow inherits MaterialWindow {
                     height: parent.height;
                     x: MainAdapter.current-page == 0 ? 0px : parent.width;
                     opacity: MainAdapter.current-page == 0 ? 1.0 : 0.0;
-                    animate x { duration: 250ms; easing: ease-out; }
-                    animate opacity { duration: 200ms; easing: ease-in-out; }
+                    animate x { duration: 220ms; easing: ease-out; }
+                    animate opacity { duration: 160ms; easing: ease-in-out; }
                 }
                 proxies := ProxiesView {
                     y: 0px;
@@ -63,8 +234,8 @@ export component MainWindow inherits MaterialWindow {
                     height: parent.height;
                     x: MainAdapter.current-page == 1 ? 0px : parent.width;
                     opacity: MainAdapter.current-page == 1 ? 1.0 : 0.0;
-                    animate x { duration: 250ms; easing: ease-out; }
-                    animate opacity { duration: 200ms; easing: ease-in-out; }
+                    animate x { duration: 220ms; easing: ease-out; }
+                    animate opacity { duration: 160ms; easing: ease-in-out; }
                 }
                 profile := ProfileView {
                     y: 0px;
@@ -72,8 +243,8 @@ export component MainWindow inherits MaterialWindow {
                     height: parent.height;
                     x: MainAdapter.current-page == 2 ? 0px : parent.width;
                     opacity: MainAdapter.current-page == 2 ? 1.0 : 0.0;
-                    animate x { duration: 250ms; easing: ease-out; }
-                    animate opacity { duration: 200ms; easing: ease-in-out; }
+                    animate x { duration: 220ms; easing: ease-out; }
+                    animate opacity { duration: 160ms; easing: ease-in-out; }
                 }
                 settings := SettingsView {
                     y: 0px;
@@ -81,34 +252,46 @@ export component MainWindow inherits MaterialWindow {
                     height: parent.height;
                     x: MainAdapter.current-page == 3 ? 0px : parent.width;
                     opacity: MainAdapter.current-page == 3 ? 1.0 : 0.0;
-                    animate x { duration: 250ms; easing: ease-out; }
-                    animate opacity { duration: 200ms; easing: ease-in-out; }
+                    animate x { duration: 220ms; easing: ease-out; }
+                    animate opacity { duration: 160ms; easing: ease-in-out; }
                 }
             }
         }
 
         if MainAdapter.error-message != "": Rectangle {
-            height: 56px;
-            background: #7f1d1d;
+            height: 74px;
+            background: transparent;
 
             HorizontalLayout {
                 padding-left: 16px;
-                padding-right: 8px;
-                spacing: 12px;
-                alignment: center;
+                padding-right: 16px;
+                padding-top: 8px;
+                padding-bottom: 10px;
 
-                MaterialText {
-                    text: MainAdapter.error-message;
-                    color: white;
-                    wrap: word-wrap;
-                    horizontal-stretch: 1;
-                }
+                Rectangle {
+                    border-radius: 16px;
+                    background: MaterialPalette.error-container;
+                    border-width: 1px;
+                    border-color: MaterialPalette.error;
 
-                TextButton {
-                    text: "Dismiss";
-                    inverse: true;
-                    clicked => {
-                        MainAdapter.dismiss-error();
+                    HorizontalLayout {
+                        padding-left: 16px;
+                        padding-right: 8px;
+                        spacing: 12px;
+
+                        MaterialText {
+                            text: MainAdapter.error-message;
+                            color: MaterialPalette.on-error-container;
+                            wrap: word-wrap;
+                            horizontal-stretch: 1;
+                        }
+
+                        TextButton {
+                            text: "Dismiss";
+                            clicked => {
+                                MainAdapter.dismiss-error();
+                            }
+                        }
                     }
                 }
             }
