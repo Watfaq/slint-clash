@@ -29,10 +29,10 @@ export component BaseButton inherits StateLayerArea {
     tooltip_offset: root.height / 2 + root.icon_size / 2 + MaterialStyleMetrics.padding_14;
 
     layout := HorizontalLayout {
-        padding_left: root.padding_left;
-        padding_right: root.padding_right;
-        padding_top: root.padding_top;
-        padding_bottom: root.padding_bottom;
+        padding_left: root.horizontal_padding;
+        padding_right: root.horizontal_padding;
+        padding_top: root.vertical_padding;
+        padding_bottom: root.vertical_padding;
         spacing: root.spacing;
         alignment: center;
 
