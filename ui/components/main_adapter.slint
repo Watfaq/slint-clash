@@ -7,9 +7,13 @@ export global MainAdapter {
     in-out property <int> current-page: 0;
     in-out property <brush> background: MaterialPalette.background;
 
-    // VPN state
-    in-out property <bool> vpn-active;
+    // Mihomo core state. System proxy and TUN will be separate controls.
+    in-out property <bool> core-running;
+    in-out property <bool> core-busy;
+    in-out property <string> status-message: "Core is stopped";
+    in-out property <string> error-message;
     in-out property <string> clash-version;
+    in-out property <int> clash-mode-index: 0;
     in-out property <string> traffic-upload: "—";
     in-out property <string> traffic-download: "—";
 
@@ -31,10 +35,12 @@ export global MainAdapter {
     in-out property <bool> show-edit-ui;
     in-out property <bool> traffic-pulse;
 
-    callback toggle-vpn();
+    callback toggle-core();
+    callback set-clash-mode(int);
     callback select-profile(string);
     callback reload-config();
     callback start-edit(int);
     callback save-setting(int, string);
     callback cancel-edit();
+    callback dismiss-error();
 }

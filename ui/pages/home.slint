@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Home page: VPN status and traffic statistics with animations
+// Home page: Mihomo core status and traffic statistics.
 
-import { Typography, ElevatedCard, FilledCard, FilledButton, OutlineButton, TextButton,
+import { Typography, ElevatedCard, FilledCard, FilledButton, OutlineButton, SegmentedButton,
          MaterialText, HorizontalDivider, Icon, ScrollView } from "@material";
 import { MainAdapter } from "../components/main_adapter.slint";
 
@@ -13,19 +13,19 @@ export component HomeView {
 
     ScrollView {
         // Off state
-        if !MainAdapter.vpn-active: VerticalLayout {
+        if !MainAdapter.core-running: VerticalLayout {
             alignment: center;
-            spacing: 24px;
+            spacing: 20px;
             padding-left: 32px;
             padding-right: 32px;
-            padding-top: 48px;
-            padding-bottom: 48px;
+            padding-top: 36px;
+            padding-bottom: 36px;
 
             Rectangle {
                 width: 88px;
                 height: 88px;
                 border-radius: 44px;
-                background: #e8e8e8;
+                background: #303238;
                 HorizontalLayout {
                     alignment: center;
                     Icon {
@@ -37,34 +37,40 @@ export component HomeView {
             }
 
             MaterialText {
-                text: "No VPN connection";
+                text: MainAdapter.core-busy ? "Starting Mihomo…" : "Mihomo core is stopped";
                 style: Typography.headline_small;
                 horizontal-alignment: center;
             }
 
             MaterialText {
-                text: "Press the button below to start the proxy service.";
+                text: MainAdapter.core-busy
+                    ? "Waiting for the local control API to become ready."
+                    : "Start the core before selecting proxies or monitoring traffic.";
                 style: Typography.body_medium;
                 horizontal-alignment: center;
                 opacity: 0.6;
             }
 
-            FilledButton {
-                text: "Start VPN";
-                horizontal-stretch: 0;
-                clicked => {
-                    MainAdapter.toggle-vpn();
+            HorizontalLayout {
+                alignment: center;
+                FilledButton {
+                    width: 180px;
+                    text: MainAdapter.core-busy ? "Starting…" : "Start Core";
+                    enabled: !MainAdapter.core-busy;
+                    clicked => {
+                        MainAdapter.toggle-core();
+                    }
                 }
             }
         }
 
         // On state
-        if MainAdapter.vpn-active: VerticalLayout {
+        if MainAdapter.core-running: VerticalLayout {
             padding: 16px;
             spacing: 16px;
             width: 100%;
 
-            // VPN Status card
+            // Core status card
             ElevatedCard {
                 width: 100%;
                 VerticalLayout {
@@ -83,7 +89,7 @@ export component HomeView {
                         }
 
                         MaterialText {
-                            text: "VPN Status";
+                            text: "Mihomo Core";
                             style: Typography.title_medium;
                         }
 
@@ -97,7 +103,7 @@ export component HomeView {
                             background: #4caf50;
                         }
                         MaterialText {
-                            text: "Running";
+                            text: MainAdapter.core-busy ? "Stopping…" : "Running";
                             style: Typography.body_medium;
                             opacity: 0.7;
                         }
@@ -123,11 +129,44 @@ export component HomeView {
                     HorizontalLayout {
                         Rectangle { horizontal-stretch: 1; }
                         OutlineButton {
-                            text: "Stop VPN";
+                            text: MainAdapter.core-busy ? "Stopping…" : "Stop Core";
+                            enabled: !MainAdapter.core-busy;
                             horizontal-stretch: 0;
                             clicked => {
-                                MainAdapter.toggle-vpn();
+                                MainAdapter.toggle-core();
                             }
+                        }
+                    }
+
+                    MaterialText {
+                        text: MainAdapter.status-message;
+                        style: Typography.body_small;
+                        opacity: 0.6;
+                    }
+                }
+            }
+
+            ElevatedCard {
+                width: 100%;
+                VerticalLayout {
+                    spacing: 14px;
+                    padding: 20px;
+
+                    MaterialText {
+                        text: "Proxy Mode";
+                        style: Typography.title_medium;
+                    }
+
+                    SegmentedButton {
+                        items: [
+                            { text: "Rule" },
+                            { text: "Global" },
+                            { text: "Direct" },
+                        ];
+                        current-index: MainAdapter.clash-mode-index;
+                        enabled: !MainAdapter.core-busy;
+                        index-changed(index) => {
+                            MainAdapter.set-clash-mode(index);
                         }
                     }
                 }

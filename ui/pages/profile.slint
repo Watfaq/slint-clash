@@ -28,6 +28,7 @@ export component ProfileView {
                 Rectangle { horizontal-stretch: 1; }
                 OutlineButton {
                     text: "Reload Config";
+                    enabled: !MainAdapter.core-busy;
                     horizontal-stretch: 0;
                     clicked => {
                         MainAdapter.reload-config();
@@ -157,6 +158,7 @@ export component ProfileView {
 
                             if MainAdapter.active-profile != profile: TextButton {
                                 text: "Select";
+                                enabled: !MainAdapter.core-busy;
                                 clicked => {
                                     MainAdapter.select-profile(profile);
                                 }

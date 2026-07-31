@@ -18,6 +18,7 @@ component SegmentedItemTemplate {
     in property <int> index;
     in property <bool> selected;
     in property <bool> last;
+    in property <bool> enabled: true;
 
     callback clicked <=> base.clicked;
 
@@ -32,6 +33,7 @@ component SegmentedItemTemplate {
     }
 
     base := BaseButton {
+        enabled: root.enabled;
         min_layout_width: 0;
         min_layout_height: 0;
         color: MaterialPalette.on_surface;
@@ -62,6 +64,7 @@ component SegmentedItemTemplate {
 export component SegmentedButton {
     in property <[SegmentedItem]> items;
     in_out property <int> current_index;
+    in property <bool> enabled: true;
 
     callback index_changed(index: int);
 
@@ -84,6 +87,7 @@ export component SegmentedButton {
                 index: index;
                 last: index == root.items.length - 1;
                 selected: index == root.current_index;
+                enabled: root.enabled;
 
                 clicked => {
                     root.select(index);

@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Slint Material 3 main window with navigation rail
 
-import { MaterialWindow, NavigationRail, NavigationItem, AppBar, Icon, MaterialText } from "@material";
+import { MaterialWindow, NavigationRail, NavigationItem, AppBar, LinearProgressIndicator,
+         MaterialText, TextButton } from "@material";
 import { HomeView, HomeViewAdapter } from "./pages/home.slint";
 import { ProfileView, ProfileViewAdapter } from "./pages/profile.slint";
 import { SettingsView, SettingsViewAdapter } from "./pages/settings.slint";
@@ -10,6 +11,7 @@ import { MainAdapter } from "./components/main_adapter.slint";
 export { MainAdapter }
 
 export component MainWindow inherits MaterialWindow {
+    title: "Slint Clash";
     preferred-width: 800px;
     preferred-height: 560px;
     min-width: 360px;
@@ -25,6 +27,11 @@ export component MainWindow inherits MaterialWindow {
     VerticalLayout {
         AppBar {
             title: "Slint Clash";
+        }
+
+        if MainAdapter.core-busy: LinearProgressIndicator {
+            indeterminate: true;
+            progress: 0.5;
         }
 
         HorizontalLayout {
@@ -65,6 +72,33 @@ export component MainWindow inherits MaterialWindow {
                     opacity: MainAdapter.current-page == 2 ? 1.0 : 0.0;
                     animate x { duration: 250ms; easing: ease-out; }
                     animate opacity { duration: 200ms; easing: ease-in-out; }
+                }
+            }
+        }
+
+        if MainAdapter.error-message != "": Rectangle {
+            height: 56px;
+            background: #7f1d1d;
+
+            HorizontalLayout {
+                padding-left: 16px;
+                padding-right: 8px;
+                spacing: 12px;
+                alignment: center;
+
+                MaterialText {
+                    text: MainAdapter.error-message;
+                    color: white;
+                    wrap: word-wrap;
+                    horizontal-stretch: 1;
+                }
+
+                TextButton {
+                    text: "Dismiss";
+                    inverse: true;
+                    clicked => {
+                        MainAdapter.dismiss-error();
+                    }
                 }
             }
         }
