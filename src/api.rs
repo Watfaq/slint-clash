@@ -182,13 +182,18 @@ impl ClashApi {
         timeout_ms: u32,
     ) -> eyre::Result<ProxyDelay> {
         let path = format!("/proxies/{}/delay", encode_path_segment(proxy));
-        let response = self
-            .build_request(Method::GET, &path)
-            .query(&[("url", test_url), ("timeout", &timeout_ms.to_string())])
-            .timeout(Duration::from_millis(u64::from(timeout_ms) + 2_000))
-            .send()
-            .await?
-            .error_for_status()?;
+        let url = reqwest::Url::parse_with_params(
+            &format!("{}{}", self.base_url, path),
+            &[("url", test_url), ("timeout", &timeout_ms.to_string())],
+        )?;
+        let mut request = self
+            .client
+            .request(Method::GET, url)
+            .timeout(Duration::from_millis(u64::from(timeout_ms) + 2_000));
+        if let Some(secret) = &self.secret {
+            request = request.bearer_auth(secret);
+        }
+        let response = request.send().await?.error_for_status()?;
         Ok(response.json().await?)
     }
 
